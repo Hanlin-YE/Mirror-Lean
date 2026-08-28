@@ -729,13 +729,12 @@
           modal.style.display = "flex";
           return;
         }
-        const overall = { gap: 0, threshold: 0 };
         const parts = {};
+        let totalFrameScore = 0;
+        let frameCount = 0;
         danceLog.forEach((frame) => {
-          if (frame.top) {
-            overall.gap += frame.top.maxAbs;
-            overall.threshold += frame.top.threshold;
-          }
+          if (!frame.all.length) return;
+          let frameScore = 0;
           frame.all.forEach((item) => {
             const key = item.partName || item.feature;
             if (!parts[key]) {
@@ -744,18 +743,27 @@
             parts[key].gap += item.maxAbs;
             parts[key].threshold += item.threshold;
             parts[key].count++;
+            frameScore += 1 - Math.min(item.maxAbs / item.threshold, 1);
           });
+          totalFrameScore += frameScore / frame.all.length;
+          frameCount++;
         });
-        const overallScore = Math.max(
-          0,
-          Math.min(100, Math.round(100 - (overall.gap / overall.threshold) * 100))
-        );
+        const overallScore =
+          frameCount === 0
+            ? 0
+            : Math.max(
+                0,
+                Math.min(
+                  100,
+                  Math.round((totalFrameScore / frameCount) * 100)
+                )
+              );
         const partEntries = Object.entries(parts).map(([name, p]) => ({
           name,
           text: p.text,
           score: Math.max(
             0,
-            Math.min(100, Math.round(100 - (p.gap / p.threshold) * 100))
+            Math.min(100, Math.round(100 - Math.min(p.gap / p.threshold, 1) * 100))
           ),
         }));
         partEntries.sort((a, b) => a.score - b.score);
