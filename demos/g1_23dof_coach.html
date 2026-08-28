@@ -177,6 +177,13 @@
       .report-tip { color: var(--muted); font-size: 0.9rem; margin-top: 1rem; }
       .report-actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
       .report-actions button { flex: 1; }
+      .tl-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+      .tl-cell { flex: 1 0 100px; min-height: 78px; border-radius: 10px; padding: 0.5rem; color: #fff; display: flex; flex-direction: column; justify-content: space-between; }
+      .tl-cell.ok { background: var(--ok); }
+      .tl-cell.warn { background: var(--warn); color: var(--bg); }
+      .tl-cell.bad { background: var(--bad); }
+      .tl-time { font-size: 0.75rem; opacity: 0.9; font-weight: 500; }
+      .tl-prompt { font-size: 11px; line-height: 1.25; margin-top: 0.3rem; }
       @media print {
         body * { visibility: hidden; }
         .report-modal, .report-modal * { visibility: visible; }
@@ -672,6 +679,12 @@
         live.sort((a, b) => b.score - a.score);
         updateErrorChart(live);
         const top = live[0];
+        const part = top.partName || top.feature;
+        const primaryMessage =
+          top.gap > top.min
+            ? `${part}${top.text}，还差 ${top.maxAbs.toFixed(2)}，加油！`
+            : `${part}已经很接近了（差距 ${top.maxAbs.toFixed(2)}），继续保持！`;
+        const kind = top.gap > top.min ? "bad" : "wait";
         const userMoving = isUserMoving(now);
         if (running && userMoving) {
           danceLog.push({
@@ -693,6 +706,8 @@
               min: i.min,
               text: i.text,
             })),
+            prompt: primaryMessage,
+            kind,
           });
         }
         if (!userMoving) {
@@ -703,14 +718,8 @@
           skillFillEl.style.width = "0%";
           return;
         }
-        const part = top.partName || top.feature;
         const similarity = Math.max(0, 1 - Math.min(top.maxAbs / top.threshold, 1)) * 100;
         const skill = Math.round(similarity);
-        const primaryMessage =
-          top.gap > top.min
-            ? `${part}${top.text}，还差 ${top.maxAbs.toFixed(2)}，加油！`
-            : `${part}已经很接近了（差距 ${top.maxAbs.toFixed(2)}），继续保持！`;
-        const kind = top.gap > top.min ? "bad" : "wait";
         if (talkEl.textContent !== primaryMessage) setTalk(primaryMessage, kind);
         talkMetaEl.textContent = `技能值 ${skill}% · 差距 ${top.maxAbs.toFixed(2)} · 阈值 ${top.min}`;
         skillFillEl.style.width = `${skill}%`;
@@ -730,10 +739,13 @@
           return;
         }
         const parts = {};
+        const bySecond = {};
         let totalFrameScore = 0;
         let frameCount = 0;
         danceLog.forEach((frame) => {
           if (!frame.all.length) return;
+          const s = Math.floor(frame.robotT ?? 0);
+          bySecond[s] = frame;
           let frameScore = 0;
           frame.all.forEach((item) => {
             const key = item.partName || item.feature;
@@ -786,6 +798,24 @@
         const partHtml = partEntries
           .map((p) => `<div>${p.name}<span>${p.score}%</span></div>`)
           .join("");
+        const tlHtml = Object.keys(bySecond)
+          .sort((a, b) => Number(a) - Number(b))
+          .map((s) => {
+            const f = bySecond[s];
+            const status =
+              f.top.maxAbs <= f.top.min
+                ? "ok"
+                : f.top.maxAbs <= f.top.threshold
+                ? "warn"
+                : "bad";
+            return `
+              <div class="tl-cell ${status}">
+                <div class="tl-time">第 ${Number(s) + 1} 秒</div>
+                <div class="tl-prompt">${f.prompt || "—"}</div>
+              </div>
+            `;
+          })
+          .join("");
         content.innerHTML = `
           <h2>舞蹈对标报告</h2>
           <p class="report-score">${overallScore}%</p>
@@ -794,6 +824,9 @@
           <h3>可以提升</h3>
           ${suggestionHtml}
           <p class="report-tip">基础建议：先单独练习手臂动作，再练习腿部动作，最后把上下半身连起来。</p>
+          <h3>每秒明细</h3>
+          <div class="tl-grid">${tlHtml}</div>
+          <p class="report-tip">图例：绿色 = 整体匹配，黄色 = 整体接近，红色 = 整体未匹配</p>
         `;
         modal.style.display = "flex";
       }
