@@ -324,7 +324,7 @@
         border-color: var(--ok);
         outline: none;
       }
-      #mostAiKey, #voiceSelect, #openaiVoiceSelect, #ttsMode {
+      #mostAiKey, #voiceSelect, #openaiVoiceSelect, #ttsMode, #speakerMode, #robotSpeakerUrl {
         width: 100%;
         background: var(--panel);
         border: 1px solid var(--line);
@@ -437,6 +437,16 @@
             <option value="coral">Coral（女声）</option>
             <option value="verse">Verse（男声）</option>
           </select>
+          <select id="speakerMode">
+            <option value="local">输出到本机扬声器</option>
+            <option value="robot">输出到机器人扬声器</option>
+          </select>
+          <input
+            id="robotSpeakerUrl"
+            type="text"
+            placeholder="机器人 speaker 地址，如 http://192.168.52.241:8123"
+            style="display:none;"
+          />
           <button id="testTtsBtn" type="button">测试语音</button>
           <div class="status" id="ttsStatus"></div>
         </div>
@@ -537,6 +547,8 @@
       const mostAiKeyInput = document.getElementById("mostAiKey");
       const voiceSelect = document.getElementById("voiceSelect");
       const openaiVoiceSelect = document.getElementById("openaiVoiceSelect");
+      const speakerModeSelect = document.getElementById("speakerMode");
+      const robotSpeakerUrlInput = document.getElementById("robotSpeakerUrl");
       const voiceEnabledCheck = document.getElementById("voiceEnabled");
       const testTtsBtn = document.getElementById("testTtsBtn");
       const ttsModeSelect = document.getElementById("ttsMode");
@@ -784,6 +796,62 @@
         }
       }
 
+      async function outputAudio(blob) {
+        if (speakerModeSelect.value === "robot") {
+          await sendRobotAudio(blob);
+        } else {
+          const url = URL.createObjectURL(blob);
+          if (ttsAudio) {
+            ttsAudio.pause();
+            ttsAudio.currentTime = 0;
+          }
+          ttsAudio = new Audio(url);
+          ttsAudio.onplay = () => { ttsStatusEl.textContent = ""; };
+          ttsAudio.onerror = () => { ttsStatusEl.textContent = "本地语音播放失败"; };
+          ttsAudio.play();
+        }
+      }
+
+      async function sendRobotAudio(blob) {
+        const url = robotSpeakerUrlInput.value.trim();
+        if (!url) {
+          ttsStatusEl.textContent = "请输入机器人 speaker 地址";
+          return;
+        }
+        ttsStatusEl.textContent = "正在发送语音到机器人…";
+        try {
+          const res = await fetch(`${url}/speak`, {
+            method: "POST",
+            headers: { "Content-Type": "audio/mpeg" },
+            body: blob,
+          });
+          if (!res.ok) throw new Error(`robot ${res.status}`);
+          ttsStatusEl.textContent = "已发送到机器人";
+        } catch (err) {
+          console.error("Send to robot failed:", err);
+          ttsStatusEl.textContent = "发送到机器人失败：" + err.message;
+        }
+      }
+
+      async function sendRobotText(text) {
+        const url = robotSpeakerUrlInput.value.trim();
+        if (!url) {
+          ttsStatusEl.textContent = "请输入机器人 speaker 地址";
+          return;
+        }
+        try {
+          const res = await fetch(`${url}/speak-text`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+          });
+          if (!res.ok) throw new Error(`robot ${res.status}`);
+        } catch (err) {
+          console.error("Send text to robot failed:", err);
+          ttsStatusEl.textContent = "发送到机器人失败：" + err.message;
+        }
+      }
+
       function pickChineseVoice() {
         const voices = browserVoices.length ? browserVoices : window.speechSynthesis.getVoices();
         // Prefer macOS / Windows high-quality Chinese voices; fall back to any zh voice.
@@ -823,6 +891,10 @@
           console.warn("No Chinese voice found; using default voice");
           ttsStatusEl.textContent = "未找到中文语音，将使用系统默认语音";
         }
+        if (speakerModeSelect.value === "robot") {
+          sendRobotText(text);
+          return;
+        }
         utterance.onerror = (e) => {
           console.warn("Browser TTS error:", e);
           ttsStatusEl.textContent = "浏览器语音失败，可切换到 most.ai API";
@@ -860,15 +932,7 @@
             throw new Error(`OpenAI TTS ${res.status} ${errText}`);
           }
           const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          if (ttsAudio) {
-            ttsAudio.pause();
-            ttsAudio.currentTime = 0;
-          }
-          ttsAudio = new Audio(url);
-          ttsAudio.onplay = () => { ttsStatusEl.textContent = ""; };
-          ttsAudio.onerror = () => { ttsStatusEl.textContent = "OpenAI 语音播放失败"; };
-          ttsAudio.play();
+          await outputAudio(blob);
         } catch (err) {
           console.error("OpenAI 语音出错：", err);
           ttsStatusEl.textContent = "OpenAI 请求失败：" + err.message + "，已切换浏览器语音";
@@ -955,15 +1019,7 @@
           const audioRes = await fetch(audioUrl);
           if (!audioRes.ok) throw new Error(`audio ${audioRes.status}`);
           const blob = await audioRes.blob();
-          const url = URL.createObjectURL(blob);
-          if (ttsAudio) {
-            ttsAudio.pause();
-            ttsAudio.currentTime = 0;
-          }
-          ttsAudio = new Audio(url);
-          ttsAudio.onplay = () => { ttsStatusEl.textContent = ""; };
-          ttsAudio.onerror = () => { ttsStatusEl.textContent = "most.ai 语音播放失败"; };
-          ttsAudio.play();
+          await outputAudio(blob);
         } catch (err) {
           console.error("most.ai 语音出错：", err);
           ttsStatusEl.textContent = "most.ai 请求失败：" + err.message + "，已切换浏览器语音";
@@ -1395,6 +1451,9 @@
       voiceEnabledCheck.checked = localStorage.getItem("voiceEnabled") === "1";
       const savedTtsMode = localStorage.getItem("ttsMode");
       if (savedTtsMode) ttsModeSelect.value = savedTtsMode;
+      const savedSpeakerMode = localStorage.getItem("speakerMode");
+      if (savedSpeakerMode) speakerModeSelect.value = savedSpeakerMode;
+      robotSpeakerUrlInput.value = localStorage.getItem("robotSpeakerUrl") || "";
 
       if (window.speechSynthesis) {
         const loadVoices = () => {
@@ -1417,10 +1476,23 @@
         openaiVoiceSelect.style.display = mode === "openai" ? "block" : "none";
       }
 
+      function updateSpeakerMode() {
+        robotSpeakerUrlInput.style.display = speakerModeSelect.value === "robot" ? "block" : "none";
+      }
+
       ttsModeSelect.addEventListener("change", () => {
         localStorage.setItem("ttsMode", ttsModeSelect.value);
         ttsStatusEl.textContent = "";
         updateVoiceSelects();
+      });
+      speakerModeSelect.addEventListener("change", () => {
+        localStorage.setItem("speakerMode", speakerModeSelect.value);
+        localStorage.setItem("robotSpeakerUrl", robotSpeakerUrlInput.value);
+        ttsStatusEl.textContent = "";
+        updateSpeakerMode();
+      });
+      robotSpeakerUrlInput.addEventListener("change", () => {
+        localStorage.setItem("robotSpeakerUrl", robotSpeakerUrlInput.value);
       });
       testTtsBtn.addEventListener("click", () => {
         const mode = ttsModeSelect.value;
@@ -1434,6 +1506,7 @@
       });
 
       updateVoiceSelects();
+      updateSpeakerMode();
 
       document.getElementById("goBtn").onclick = async () => {
         running = true;
