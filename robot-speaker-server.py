@@ -24,6 +24,7 @@ import json
 import shutil
 import tempfile
 import subprocess
+import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
@@ -172,11 +173,15 @@ class Handler(BaseHTTPRequestHandler):
         data = self.rfile.read(length)
 
         if parsed.path == "/speak":
-            ok = play_audio_bytes(data, self.headers.get("Content-Type", "audio/mpeg"))
-            if ok:
-                self._send(200, b"played")
-            else:
-                self._send(500, b"no audio player found")
+            content_type = self.headers.get("Content-Type", "audio/mpeg")
+            # Acknowledge receipt immediately; playback can take several seconds.
+            self._send(202, b"accepted")
+            def _play():
+                ok = play_audio_bytes(data, content_type)
+                if not ok:
+                    log("playback failed for /speak")
+            threading.Thread(target=_play, daemon=True).start()
+            return
         elif parsed.path == "/speak-text":
             try:
                 payload = json.loads(data.decode("utf-8"))

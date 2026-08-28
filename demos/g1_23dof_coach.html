@@ -815,6 +815,7 @@
         try {
           await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
+            xhr.timeout = 10000;
             xhr.upload.addEventListener("progress", (e) => {
               if (e.lengthComputable) {
                 const pct = Math.round((e.loaded / e.total) * 100);
@@ -830,6 +831,7 @@
               }
             });
             xhr.addEventListener("error", () => reject(new Error("network error")));
+            xhr.addEventListener("timeout", () => reject(new Error("timeout: 机器人 speaker 没有响应")));
             xhr.addEventListener("abort", () => reject(new Error("aborted")));
             xhr.open("POST", `${url}/speak`);
             xhr.setRequestHeader("Content-Type", "audio/mpeg");
