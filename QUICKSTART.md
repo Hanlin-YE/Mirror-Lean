@@ -1,8 +1,14 @@
 # Quick Start — Mirror · 镜身
 
-## 1. 启动本地服务器
+## 1. 准备模型与启动本地服务器
 
-在 `Mirror-Lean` 仓库根目录运行：
+在 `Mirror-Lean` 仓库根目录，先下载姿态检测模型（避免从 Google Cloud 加载超时）：
+
+```bash
+python download_models.py
+```
+
+然后启动本地服务器：
 
 ```bash
 python serve.py
