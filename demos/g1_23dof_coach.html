@@ -769,6 +769,26 @@
         }
       }
 
+      function pickChineseVoice() {
+        const voices = browserVoices.length ? browserVoices : window.speechSynthesis.getVoices();
+        // Prefer macOS / Windows high-quality Chinese voices; fall back to any zh voice.
+        const preferred = [
+          "mei-jia", "ting-ting", "sin-ji", "li-mu", "yaoyao", "huihui",
+          "kangkuan", "yating", "hanhan", "zhiwei", "tracy", "samantha"
+        ];
+        const byQuality = voices
+          .filter((v) => v.lang && v.lang.toLowerCase().startsWith("zh"))
+          .sort((a, b) => {
+            const aName = a.name.toLowerCase();
+            const bName = b.name.toLowerCase();
+            const aPref = preferred.findIndex((p) => aName.includes(p));
+            const bPref = preferred.findIndex((p) => bName.includes(p));
+            if (aPref !== bPref) return (aPref === -1 ? 999 : aPref) - (bPref === -1 ? 999 : bPref);
+            return b.name.localeCompare(a.name);
+          });
+        return byQuality[0] || null;
+      }
+
       function speakBrowser(text) {
         if (!window.speechSynthesis) {
           console.warn("当前浏览器不支持语音合成");
@@ -780,9 +800,14 @@
         utterance.lang = "zh-CN";
         utterance.rate = 1.05;
         utterance.pitch = 1.0;
-        const voices = browserVoices.length ? browserVoices : window.speechSynthesis.getVoices();
-        const zhVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("zh"));
-        if (zhVoice) utterance.voice = zhVoice;
+        const zhVoice = pickChineseVoice();
+        if (zhVoice) {
+          utterance.voice = zhVoice;
+          console.log("Browser TTS using voice:", zhVoice.name, zhVoice.lang);
+        } else {
+          console.warn("No Chinese voice found; using default voice");
+          ttsStatusEl.textContent = "未找到中文语音，将使用系统默认语音";
+        }
         utterance.onerror = (e) => {
           console.warn("Browser TTS error:", e);
           ttsStatusEl.textContent = "浏览器语音失败，可切换到 most.ai API";
@@ -803,23 +828,73 @@
           return;
         }
         const voice = voiceSelect.value;
+        const submitUrl = "https://api.tts.ai/v1/tts/";
+        const pollBase = "https://api.tts.ai/v1/speech/results/";
         try {
           ttsStatusEl.textContent = "正在请求 most.ai 语音…";
-          const res = await fetch("https://api.tts.ai/v1/tts/", {
+          const submitRes = await fetch(submitUrl, {
             method: "POST",
             headers: {
               "Authorization": `Bearer ${key}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
+              model: "kokoro",
               text,
               voice,
               format: "mp3",
               language: "zh",
+              instructions: "以热情、鼓舞人心的健身教练口吻大声说话，充满能量",
             }),
           });
-          if (!res.ok) throw new Error(`TTS ${res.status}`);
-          const blob = await res.blob();
+          if (submitRes.status === 402) {
+            ttsStatusEl.textContent = "most.ai 账户余额不足（402），已自动切换到浏览器语音";
+            speakBrowser(text);
+            return;
+          }
+          if (!submitRes.ok) {
+            const errText = await submitRes.text().catch(() => "");
+            throw new Error(`TTS ${submitRes.status} ${errText}`);
+          }
+          const submitData = await submitRes.json();
+          const uuid = submitData.uuid;
+          if (!uuid) throw new Error("most.ai 未返回 uuid");
+
+          // Poll for completion (max ~30s).
+          const audioUrl = await new Promise((resolve, reject) => {
+            let attempts = 0;
+            const timer = setInterval(async () => {
+              attempts += 1;
+              try {
+                const pollRes = await fetch(`${pollBase}?uuid=${uuid}`, {
+                  headers: { "Authorization": `Bearer ${key}` },
+                });
+                if (!pollRes.ok) {
+                  clearInterval(timer);
+                  reject(new Error(`poll ${pollRes.status}`));
+                  return;
+                }
+                const pollData = await pollRes.json();
+                if (pollData.status === "completed") {
+                  clearInterval(timer);
+                  resolve(pollData.result_url);
+                } else if (pollData.status === "failed") {
+                  clearInterval(timer);
+                  reject(new Error(pollData.error || "TTS generation failed"));
+                } else if (attempts > 20) {
+                  clearInterval(timer);
+                  reject(new Error("most.ai 语音生成超时"));
+                }
+              } catch (e) {
+                clearInterval(timer);
+                reject(e);
+              }
+            }, 1500);
+          });
+
+          const audioRes = await fetch(audioUrl);
+          if (!audioRes.ok) throw new Error(`audio ${audioRes.status}`);
+          const blob = await audioRes.blob();
           const url = URL.createObjectURL(blob);
           if (ttsAudio) {
             ttsAudio.pause();
@@ -831,7 +906,8 @@
           ttsAudio.play();
         } catch (err) {
           console.error("most.ai 语音出错：", err);
-          ttsStatusEl.textContent = "most.ai 请求失败：" + err.message;
+          ttsStatusEl.textContent = "most.ai 请求失败：" + err.message + "，已切换浏览器语音";
+          speakBrowser(text);
         }
       }
 
