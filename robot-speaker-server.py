@@ -31,10 +31,33 @@ PORT = int(os.environ.get("PORT", "8123"))
 HOST = os.environ.get("HOST", "0.0.0.0")
 
 
+def log(msg: str):
+    sys.stderr.write(msg + "\n")
+    sys.stderr.flush()
+
+
+def run_ok(cmd: list) -> bool:
+    try:
+        result = subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        if result.returncode != 0:
+            err = result.stderr.decode("utf-8", "ignore").strip()[:200]
+            log(f"cmd failed ({' '.join(cmd)}): {err}")
+            return False
+        return True
+    except Exception as e:
+        log(f"cmd exception ({' '.join(cmd)}): {e}")
+        return False
+
+
 def play_audio_bytes(data: bytes, content_type: str = "audio/mpeg") -> bool:
-    """Play raw audio bytes using the first available local player."""
+    """Play raw audio bytes using the first available local player.
+
+    aplay only supports WAV, so for MP3 we first try ffplay, then convert
+    to WAV with ffmpeg and play that.
+    """
     suffix = ".mp3"
-    if "wav" in content_type:
+    is_wav = "wav" in content_type
+    if is_wav:
         suffix = ".wav"
     elif "ogg" in content_type:
         suffix = ".ogg"
@@ -46,20 +69,40 @@ def play_audio_bytes(data: bytes, content_type: str = "audio/mpeg") -> bool:
         with os.fdopen(fd, "wb") as f:
             f.write(data)
 
-        # Try players in order of preference.
-        players = [
-            ["aplay", path],                         # ALSA
-            ["ffplay", "-nodisp", "-autoexit", path],  # ffmpeg
-            ["mpg123", path],                        # MP3
-            ["cvlc", "--play-and-exit", path],       # VLC headless
-        ]
-        for cmd in players:
-            if shutil.which(cmd[0]):
+        # WAV can go straight to aplay.
+        if is_wav and shutil.which("aplay"):
+            log("playing WAV with aplay")
+            if run_ok(["aplay", path]):
+                return True
+
+        # Try ffplay first for compressed formats.
+        if shutil.which("ffplay"):
+            log("playing with ffplay")
+            if run_ok(["ffplay", "-nodisp", "-autoexit", "-hide_banner", "-loglevel", "error", path]):
+                return True
+
+        # Fallback: ffmpeg decode to WAV, then aplay.
+        if shutil.which("ffmpeg") and shutil.which("aplay"):
+            wav_fd, wav_path = tempfile.mkstemp(suffix=".wav")
+            try:
+                os.close(wav_fd)
+                log("converting to WAV with ffmpeg")
+                if run_ok(["ffmpeg", "-y", "-i", path, "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", wav_path]):
+                    log("playing converted WAV with aplay")
+                    if run_ok(["aplay", wav_path]):
+                        return True
+            finally:
                 try:
-                    subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    return True
-                except Exception as e:
-                    print(f"player {cmd[0]} failed: {e}")
+                    os.unlink(wav_path)
+                except OSError:
+                    pass
+
+        if shutil.which("mpg123"):
+            log("playing with mpg123")
+            if run_ok(["mpg123", path]):
+                return True
+
+        log("no working audio player found")
         return False
     finally:
         try:
@@ -72,29 +115,26 @@ def speak_text_local(text: str) -> bool:
     """Speak text using local TTS engines."""
     # Try espeak with Chinese voice hint.
     if shutil.which("espeak"):
-        try:
-            subprocess.run(["espeak", "-v", "zh", text], check=False)
+        log("speaking with espeak")
+        if run_ok(["espeak", "-v", "zh", text]):
             return True
-        except Exception as e:
-            print(f"espeak failed: {e}")
 
     # macOS built-in say.
     if shutil.which("say"):
-        try:
-            subprocess.run(["say", text], check=False)
+        log("speaking with say")
+        if run_ok(["say", text]):
             return True
-        except Exception as e:
-            print(f"say failed: {e}")
 
     # pyttsx3 cross-platform fallback.
     try:
         import pyttsx3
+        log("speaking with pyttsx3")
         engine = pyttsx3.init()
         engine.say(text)
         engine.runAndWait()
         return True
     except Exception as e:
-        print(f"pyttsx3 failed: {e}")
+        log(f"pyttsx3 failed: {e}")
 
     return False
 
