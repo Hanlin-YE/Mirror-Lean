@@ -290,6 +290,25 @@
         border-color: var(--ok);
         outline: none;
       }
+      #mostAiKey, #voiceSelect {
+        width: 100%;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 6px 8px;
+        font-size: 13px;
+        margin-top: 6px;
+      }
+      .voice-check {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 8px 0;
+        font-size: 13px;
+        color: var(--text);
+      }
+      .voice-check input { width: auto; }
     </style>
   </head>
   <body>
@@ -349,6 +368,26 @@
         >
         <a class="file" href="../README.md">项目说明</a>
         <a class="file" href="../QUICKSTART.md">快速开始</a>
+
+        <div class="card">
+          <h3>语音教练</h3>
+          <input
+            id="mostAiKey"
+            type="password"
+            placeholder="粘贴 most.ai API key"
+            autocomplete="off"
+          />
+          <select id="voiceSelect">
+            <option value="v2/zh_speaker_0">中文声音 1</option>
+            <option value="v2/zh_speaker_1">中文声音 2</option>
+          </select>
+          <label class="voice-check">
+            <input id="voiceEnabled" type="checkbox" />
+            <span>每 10 秒播报提示</span>
+          </label>
+          <button id="testTtsBtn" type="button">测试语音</button>
+        </div>
+
         <select id="camSelect" style="display: none"></select>
         <!-- real-time metrics and chart moved to the data panel -->
       </aside>
@@ -426,6 +465,10 @@
       const talkEl = document.getElementById("talk");
       const talkMetaEl = document.getElementById("talkMeta");
       const skillFillEl = document.getElementById("skillFill");
+      const mostAiKeyInput = document.getElementById("mostAiKey");
+      const voiceSelect = document.getElementById("voiceSelect");
+      const voiceEnabledCheck = document.getElementById("voiceEnabled");
+      const testTtsBtn = document.getElementById("testTtsBtn");
       const goBtn = document.getElementById("goBtn");
 
       let robotLm = null;
@@ -438,6 +481,8 @@
       let youHistory = [];
       let pendingErr = null;
       let danceLog = [];
+      let ttsAudio = null;
+      let lastSpokenAt = 0;
 
       function setTalk(text, kind) {
         talkEl.textContent = text;
@@ -631,6 +676,38 @@
         );
       }
 
+      async function speak(text) {
+        const key = mostAiKeyInput.value.trim();
+        if (!key || !voiceEnabledCheck.checked) return;
+        const voice = voiceSelect.value;
+        try {
+          const res = await fetch("https://api.tts.ai/v1/tts/", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${key}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              text,
+              voice,
+              format: "mp3",
+              language: "zh",
+            }),
+          });
+          if (!res.ok) throw new Error(`TTS ${res.status}`);
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          if (ttsAudio) {
+            ttsAudio.pause();
+            ttsAudio.currentTime = 0;
+          }
+          ttsAudio = new Audio(url);
+          ttsAudio.play();
+        } catch (err) {
+          console.error("语音出错：", err);
+        }
+      }
+
       function judge(you, g1) {
         const now = performance.now();
         rememberG1(g1, now);
@@ -721,6 +798,10 @@
         const similarity = Math.max(0, 1 - Math.min(top.maxAbs / top.threshold, 1)) * 100;
         const skill = Math.round(similarity);
         if (talkEl.textContent !== primaryMessage) setTalk(primaryMessage, kind);
+        if (voiceEnabledCheck.checked && now - lastSpokenAt >= 10000) {
+          lastSpokenAt = now;
+          speak(primaryMessage);
+        }
         talkMetaEl.textContent = `技能值 ${skill}% · 差距 ${top.maxAbs.toFixed(2)} · 阈值 ${top.min}`;
         skillFillEl.style.width = `${skill}%`;
         skillFillEl.style.background =
@@ -982,6 +1063,19 @@
         refreshGo();
       }
 
+      mostAiKeyInput.value = localStorage.getItem("mostAiKey") || "";
+      voiceEnabledCheck.checked = localStorage.getItem("voiceEnabled") === "1";
+
+      mostAiKeyInput.addEventListener("input", () => {
+        localStorage.setItem("mostAiKey", mostAiKeyInput.value);
+      });
+      voiceEnabledCheck.addEventListener("change", () => {
+        localStorage.setItem("voiceEnabled", voiceEnabledCheck.checked ? "1" : "");
+      });
+      testTtsBtn.addEventListener("click", () => {
+        speak("跟着 G1 做动作，加油！");
+      });
+
       document.getElementById("goBtn").onclick = async () => {
         running = true;
         lastRobotT = -1;
@@ -989,6 +1083,7 @@
         youHistory = [];
         danceLog = [];
         pendingErr = null;
+        lastSpokenAt = performance.now();
         robot.onended = () => { if (running) stopBtn.click(); };
         await robot.play();
         setTalk("跟着 G1 做，系统在比同一时刻", "wait");
@@ -1000,6 +1095,10 @@
         running = false;
         robot.pause();
         pendingErr = null;
+        if (ttsAudio) {
+          ttsAudio.pause();
+          ttsAudio.currentTime = 0;
+        }
         document.getElementById("stopBtn").disabled = true;
         setTalk("已停止", "wait");
         statusEl.textContent = "已停止。点击开始对标继续。";
