@@ -72,27 +72,36 @@ def play_audio_bytes(data: bytes, content_type: str = "audio/mpeg") -> bool:
         with os.fdopen(fd, "wb") as f:
             f.write(data)
 
-        # WAV can go straight to aplay.
-        if is_wav and shutil.which("aplay"):
-            log("playing WAV with aplay")
-            if run_ok(["aplay", path]):
+        def play_wav(wav_path: str) -> bool:
+            if shutil.which("paplay"):
+                log("playing WAV with paplay")
+                if run_ok(["paplay", wav_path]):
+                    return True
+            if shutil.which("aplay"):
+                log("playing WAV with aplay")
+                if run_ok(["aplay", wav_path]):
+                    return True
+            return False
+
+        # WAV can go straight to paplay/aplay.
+        if is_wav:
+            if play_wav(path):
                 return True
 
-        # Try ffplay first for compressed formats.
+        # Try ffplay first for compressed formats (route through PulseAudio).
         if shutil.which("ffplay"):
             log("playing with ffplay")
             if run_ok(["ffplay", "-nodisp", "-autoexit", "-hide_banner", "-loglevel", "error", path]):
                 return True
 
-        # Fallback: ffmpeg decode to WAV, then aplay.
-        if shutil.which("ffmpeg") and shutil.which("aplay"):
+        # Fallback: ffmpeg decode to WAV, then play.
+        if shutil.which("ffmpeg"):
             wav_fd, wav_path = tempfile.mkstemp(suffix=".wav")
             try:
                 os.close(wav_fd)
                 log("converting to WAV with ffmpeg")
                 if run_ok(["ffmpeg", "-y", "-i", path, "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", wav_path]):
-                    log("playing converted WAV with aplay")
-                    if run_ok(["aplay", wav_path]):
+                    if play_wav(wav_path):
                         return True
             finally:
                 try:
