@@ -1501,14 +1501,23 @@
         openaiVoiceSelect.style.display = mode === "openai" ? "block" : "none";
       }
 
+      function updateTtsCompatibilityWarning() {
+        if (speakerModeSelect.value === "robot" && ttsModeSelect.value === "browser") {
+          ttsStatusEl.textContent = "提示：机器人扬声器需要 OpenAI 或 most.ai TTS。浏览器语音无法发送到机器人。";
+        } else if (ttsStatusEl.textContent && ttsStatusEl.textContent.startsWith("提示：")) {
+          ttsStatusEl.textContent = "";
+        }
+      }
+
       ttsModeSelect.addEventListener("change", () => {
         localStorage.setItem("ttsMode", ttsModeSelect.value);
         ttsStatusEl.textContent = "";
         updateVoiceSelects();
+        updateTtsCompatibilityWarning();
       });
       speakerModeSelect.addEventListener("change", () => {
         localStorage.setItem("speakerMode", speakerModeSelect.value);
-        ttsStatusEl.textContent = "";
+        updateTtsCompatibilityWarning();
       });
       testTtsBtn.addEventListener("click", () => {
         const mode = ttsModeSelect.value;
@@ -1522,6 +1531,7 @@
       });
 
       updateVoiceSelects();
+      updateTtsCompatibilityWarning();
 
       document.getElementById("goBtn").onclick = async () => {
         running = true;
