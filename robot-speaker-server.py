@@ -217,11 +217,22 @@ class Handler(BaseHTTPRequestHandler):
             if not text:
                 self._send(400, b"text required")
                 return
-            ok = speak_text_unitree(text) or speak_text_local(text)
-            if ok:
-                self._send(200, b"spoken")
-            else:
-                self._send(500, b"tts failed")
+
+            # Return 202 immediately so callers don't hang while the TTS engine
+            # synthesizes and plays. Playback is handled in a background thread.
+            self._send(202, b"accepted")
+
+            def _speak():
+                if speak_text_unitree(text):
+                    log(f"/speak-text succeeded via Unitree TTS: {text[:60]!r}")
+                    return
+                if speak_text_local(text):
+                    log(f"/speak-text succeeded via local TTS: {text[:60]!r}")
+                    return
+                log(f"/speak-text failed for: {text[:60]!r}")
+
+            threading.Thread(target=_speak, daemon=True).start()
+            return
         else:
             self._send(404, b"not found")
 
