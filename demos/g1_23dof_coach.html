@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdn.plot.ly https://storage.googleapis.com; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://cdn.plot.ly https://storage.googleapis.com https://api.tts.ai; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:;"
+    />
     <title>G1 23DoF 对标教练</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
@@ -54,6 +58,36 @@
         padding: 4px 8px;
         font-size: 12px;
         color: var(--muted);
+      }
+      .frame-guide {
+        position: absolute;
+        inset: 8% 5% 12% 5%;
+        border: 2px dashed rgba(255, 200, 87, 0.55);
+        border-radius: 12px;
+        z-index: 2;
+        pointer-events: none;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.25s;
+      }
+      .frame-guide.show {
+        opacity: 1;
+      }
+      .frame-guide.ok {
+        border-color: rgba(62, 224, 143, 0.55);
+      }
+      .frame-guide.ok .frame-text {
+        color: var(--ok);
+      }
+      .frame-text {
+        background: rgba(7, 11, 22, 0.85);
+        color: var(--warn);
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        margin-bottom: 8px;
       }
       video,
       canvas {
@@ -290,7 +324,7 @@
         border-color: var(--ok);
         outline: none;
       }
-      #mostAiKey, #voiceSelect {
+      #mostAiKey, #voiceSelect, #ttsMode {
         width: 100%;
         background: var(--panel);
         border: 1px solid var(--line);
@@ -322,12 +356,15 @@
         <div class="tag">你 · 实时对标 · 12 点</div>
         <video id="cam" class="mirror" playsinline autoplay muted></video>
         <canvas id="camOverlay" class="mirror"></canvas>
+        <div class="frame-guide" id="frameGuide">
+          <div class="frame-text">摄像头需平视、与胸口/肩膀同高，并拍到全身</div>
+        </div>
       </div>
       <aside class="side">
         <div class="card">
           <h1>G1 23DoF 动作对标</h1>
           <p>
-            只比 12 个点。机器人画面左边举手，你举右手。提示按你要举的那只手说。
+            只比 12 个点。摄像头请调整到与胸口/肩膀同高、水平正面拍摄，俯视角度会导致无法识别正常成人姿态。
           </p>
           <div class="status" id="status">
             请从下方列表选择一个视频，再开摄像头。
@@ -371,21 +408,25 @@
 
         <div class="card">
           <h3>语音教练</h3>
+          <label class="voice-check" style="margin-bottom:6px;">
+            <input id="voiceEnabled" type="checkbox" />
+            <span>每 10 秒播报提示</span>
+          </label>
+          <select id="ttsMode">
+            <option value="browser">浏览器语音（笔记本扬声器，无需 key）</option>
+            <option value="mostai">most.ai API（key 来自 .env）</option>
+          </select>
           <input
             id="mostAiKey"
-            type="password"
-            placeholder="粘贴 most.ai API key"
-            autocomplete="off"
+            type="hidden"
+            value=""
           />
           <select id="voiceSelect">
             <option value="v2/zh_speaker_0">中文声音 1</option>
             <option value="v2/zh_speaker_1">中文声音 2</option>
           </select>
-          <label class="voice-check">
-            <input id="voiceEnabled" type="checkbox" />
-            <span>每 10 秒播报提示</span>
-          </label>
           <button id="testTtsBtn" type="button">测试语音</button>
+          <div class="status" id="ttsStatus"></div>
         </div>
 
         <select id="camSelect" style="display: none"></select>
@@ -411,6 +452,22 @@
         PoseLandmarker,
         FilesetResolver,
       } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.17/+esm";
+
+      // MediaPipe's WASM runtime prints INFO messages (e.g. "Created TensorFlow Lite
+      // XNNPACK delegate for CPU") for every processed frame. This is normal and not
+      // an error, but it spams the console. Filter it out so real errors remain visible.
+      const originalInfo = console.info;
+      console.info = function (...args) {
+        const msg = args.join(" ");
+        if (
+          msg.includes("vision_wasm") ||
+          msg.includes("XNNPACK") ||
+          msg.includes("TensorFlow Lite")
+        ) {
+          return;
+        }
+        originalInfo.apply(console, args);
+      };
 
       const L_SH = 11,
         R_SH = 12,
@@ -469,6 +526,8 @@
       const voiceSelect = document.getElementById("voiceSelect");
       const voiceEnabledCheck = document.getElementById("voiceEnabled");
       const testTtsBtn = document.getElementById("testTtsBtn");
+      const ttsModeSelect = document.getElementById("ttsMode");
+      const ttsStatusEl = document.getElementById("ttsStatus");
       const goBtn = document.getElementById("goBtn");
 
       let robotLm = null;
@@ -483,6 +542,10 @@
       let danceLog = [];
       let ttsAudio = null;
       let lastSpokenAt = 0;
+      let browserVoices = [];
+      let lastCamDetectAt = 0;
+      let lastRobotDetectAt = 0;
+      const DETECT_INTERVAL_MS = 100;
 
       function setTalk(text, kind) {
         talkEl.textContent = text;
@@ -491,6 +554,26 @@
 
       function vis(lm, i) {
         return (lm[i].visibility ?? 1) > 0.55;
+      }
+
+      function bodyVisible(lm) {
+        if (!lm) return false;
+        return BODY12.every((i) => vis(lm, i));
+      }
+
+      function cameraAngleHint(lm) {
+        if (!lm) return null;
+        if (!vis(lm, L_SH) || !vis(lm, R_SH) || !vis(lm, L_HIP) || !vis(lm, R_HIP)) return null;
+        const shoulderW = Math.hypot(
+          lm[L_SH].x - lm[R_SH].x,
+          lm[L_SH].y - lm[R_SH].y
+        );
+        if (shoulderW <= 0.001) return null;
+        const torsoLen = torso(lm);
+        if (torsoLen / shoulderW < 0.55) {
+          return "检测到俯视角度：请将摄像头调至胸口/肩膀高度，水平正面拍摄";
+        }
+        return null;
       }
 
       function torso(lm) {
@@ -526,6 +609,13 @@
 
       function fmt(v) {
         return v == null || Number.isNaN(v) ? "--" : v.toFixed(2);
+      }
+
+      function formatTime(totalSeconds) {
+        const s = Math.max(0, Math.floor(totalSeconds || 0));
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
       }
 
       function mpOnScreenLeft(lm, leftIdx, rightIdx) {
@@ -633,13 +723,6 @@
         return false;
       }
 
-      function speak(text, kind, now) {
-        if (now - lastTalkAt < 1400 && kind === "bad") return;
-        lastTalkAt = now;
-        pendingErr = null;
-        setTalk(text, kind);
-      }
-
       function updateErrorChart(items) {
         const labels = items.map((i) => (i.partName || i.feature) + i.text);
         const gaps = items.map((i) => i.gap);
@@ -677,10 +760,51 @@
       }
 
       async function speak(text) {
-        const key = mostAiKeyInput.value.trim();
-        if (!key || !voiceEnabledCheck.checked) return;
+        if (!voiceEnabledCheck.checked) return;
+        const mode = ttsModeSelect.value;
+        if (mode === "mostai") {
+          await speakMostAi(text);
+        } else {
+          speakBrowser(text);
+        }
+      }
+
+      function speakBrowser(text) {
+        if (!window.speechSynthesis) {
+          console.warn("当前浏览器不支持语音合成");
+          ttsStatusEl.textContent = "浏览器不支持语音合成";
+          return;
+        }
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "zh-CN";
+        utterance.rate = 1.05;
+        utterance.pitch = 1.0;
+        const voices = browserVoices.length ? browserVoices : window.speechSynthesis.getVoices();
+        const zhVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("zh"));
+        if (zhVoice) utterance.voice = zhVoice;
+        utterance.onerror = (e) => {
+          console.warn("Browser TTS error:", e);
+          ttsStatusEl.textContent = "浏览器语音失败，可切换到 most.ai API";
+        };
+        utterance.onstart = () => { ttsStatusEl.textContent = ""; };
+        window.speechSynthesis.speak(utterance);
+      }
+
+      async function speakMostAi(text) {
+        const key = (
+          window.__MOSTAI_API_KEY__ ||
+          mostAiKeyInput.value ||
+          ""
+        ).trim();
+        if (!key) {
+          ttsStatusEl.textContent = "most.ai API key 未配置（请检查 .env 与 serve.py）";
+          console.warn("most.ai key missing");
+          return;
+        }
         const voice = voiceSelect.value;
         try {
+          ttsStatusEl.textContent = "正在请求 most.ai 语音…";
           const res = await fetch("https://api.tts.ai/v1/tts/", {
             method: "POST",
             headers: {
@@ -702,9 +826,12 @@
             ttsAudio.currentTime = 0;
           }
           ttsAudio = new Audio(url);
+          ttsAudio.onplay = () => { ttsStatusEl.textContent = ""; };
+          ttsAudio.onerror = () => { ttsStatusEl.textContent = "most.ai 语音播放失败"; };
           ttsAudio.play();
         } catch (err) {
-          console.error("语音出错：", err);
+          console.error("most.ai 语音出错：", err);
+          ttsStatusEl.textContent = "most.ai 请求失败：" + err.message;
         }
       }
 
@@ -712,8 +839,21 @@
         const now = performance.now();
         rememberG1(g1, now);
         rememberYou(you, now);
+        const angleHint = cameraAngleHint(camLm);
+        if (angleHint) {
+          setTalk(angleHint, "wait");
+          talkMetaEl.textContent = "摄像头角度不正确，无法识别姿态";
+          skillFillEl.style.width = "0%";
+          return;
+        }
         if (!you || !g1) {
-          setTalk("两边骨架都要看见才能对标", "wait");
+          if (!bodyVisible(camLm)) {
+            setTalk("摄像头没拍到全身，请后退或调整角度", "wait");
+          } else if (!bodyVisible(robotLm)) {
+            setTalk("机器人参考画面未识别，请换一段视频", "wait");
+          } else {
+            setTalk("两边骨架都要看见才能对标", "wait");
+          }
           talkMetaEl.textContent = "";
           skillFillEl.style.width = "0%";
           return;
@@ -891,7 +1031,7 @@
                 : "bad";
             return `
               <div class="tl-cell ${status}">
-                <div class="tl-time">第 ${Number(s) + 1} 秒</div>
+                <div class="tl-time">${formatTime(Number(s))}</div>
                 <div class="tl-prompt">${f.prompt || "—"}</div>
               </div>
             `;
@@ -915,6 +1055,7 @@
       function closeReport() {
         document.getElementById("reportModal").style.display = "none";
       }
+      window.closeReport = closeReport;
 
       function fitCanvas(video, canvas) {
         const w = video.videoWidth;
@@ -998,20 +1139,36 @@
       }
 
       async function openStream(deviceId) {
+        const baseVideo = {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          aspectRatio: { ideal: 16 / 9 },
+        };
         const constraints = deviceId
           ? {
-              video: {
-                deviceId: { exact: deviceId },
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-              },
+              video: { ...baseVideo, deviceId: { exact: deviceId } },
               audio: false,
             }
-          : { video: true, audio: false };
+          : {
+              video: { ...baseVideo, facingMode: { ideal: "user" } },
+              audio: false,
+            };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         if (cam.srcObject) cam.srcObject.getTracks().forEach((t) => t.stop());
         cam.srcObject = stream;
-        await cam.play();
+        try {
+          await cam.play();
+        } catch (playErr) {
+          console.warn("cam.play() failed, retrying after loadedmetadata", playErr);
+          await new Promise((resolve, reject) => {
+            const onMeta = () => {
+              cam.removeEventListener("loadedmetadata", onMeta);
+              resolve(cam.play());
+            };
+            cam.addEventListener("loadedmetadata", onMeta);
+            setTimeout(() => reject(new Error("camera metadata timeout")), 5000);
+          });
+        }
       }
 
       document.getElementById("videoSelect").onchange = (e) => {
@@ -1024,21 +1181,56 @@
       };
 
       document.getElementById("camBtn").onclick = async () => {
+        statusEl.textContent = "正在请求摄像头权限…";
         try {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error("浏览器不支持 getUserMedia，请用 Chrome / Edge / Safari 最新版");
+          }
+          // First: get permission with a generic request so labels become available.
           await openStream();
+          statusEl.textContent = "摄像头已启动，正在识别可用设备…";
           const id = await pickColorDeviceId();
-          if (id) await openStream(id);
-          statusEl.textContent = "彩色摄像头已开。模型走 Google。";
+          if (id && cam.srcObject && cam.srcObject.getTracks().some((t) => t.getSettings().deviceId !== id)) {
+            // Try to switch to the preferred color camera, but keep the current
+            // stream if it fails so the user still sees something.
+            try {
+              await openStream(id);
+              statusEl.textContent = `彩色摄像头已开（设备 ${id.slice(0, 8)}…）。模型走 Google。`;
+            } catch (switchErr) {
+              console.warn("无法切换到优选摄像头，保留当前摄像头：", switchErr);
+              statusEl.textContent = "摄像头已启动（使用的是默认设备）。模型走 Google。";
+            }
+          } else {
+            statusEl.textContent = "彩色摄像头已开。模型走 Google。";
+          }
           refreshGo();
           if (!window.__visionReady) await loadModel();
         } catch (err) {
-          statusEl.textContent = "打不开摄像头：" + err.message;
-          setTalk("请用 Chrome，并选 FHD 摄像头，不要选 IR", "bad");
+          console.error("Camera start failed:", err);
+          let msg = err.message || String(err);
+          if (msg.includes("Permission denied") || msg.includes("NotAllowed")) {
+            msg = "摄像头权限被拒绝。请在浏览器地址栏点击锁形图标，允许摄像头，然后刷新页面重试。";
+          } else if (msg.includes("NotFound") || msg.includes("DevicesNotFound")) {
+            msg = "未找到摄像头。请确认摄像头已连接且未被其他应用占用。";
+          } else if (msg.includes("NotReadable") || msg.includes("Could not start")) {
+            msg = "摄像头被占用或无法读取。请关闭 Zoom / 微信 / 腾讯会议等占用摄像头的软件。";
+          } else if (msg.includes("Only secure origins")) {
+            msg = "页面必须通过 http://localhost 或 https 访问才能使用摄像头。";
+          }
+          statusEl.textContent = "打不开摄像头：" + msg;
+          setTalk("请检查摄像头权限与占用情况", "bad");
         }
       };
 
       document.getElementById("camSelect").onchange = async (e) => {
-        await openStream(e.target.value);
+        try {
+          statusEl.textContent = "正在切换摄像头…";
+          await openStream(e.target.value);
+          statusEl.textContent = "摄像头已切换。";
+          refreshGo();
+        } catch (err) {
+          statusEl.textContent = "切换摄像头失败：" + err.message;
+        }
       };
 
       function refreshGo() {
@@ -1063,8 +1255,19 @@
         refreshGo();
       }
 
-      mostAiKeyInput.value = localStorage.getItem("mostAiKey") || "";
+      mostAiKeyInput.value = window.__MOSTAI_API_KEY__ || localStorage.getItem("mostAiKey") || "";
       voiceEnabledCheck.checked = localStorage.getItem("voiceEnabled") === "1";
+      const savedTtsMode = localStorage.getItem("ttsMode");
+      if (savedTtsMode) ttsModeSelect.value = savedTtsMode;
+
+      if (window.speechSynthesis) {
+        const loadVoices = () => {
+          browserVoices = window.speechSynthesis.getVoices();
+          console.log("Browser voices loaded:", browserVoices.map((v) => `${v.lang} ${v.name}`));
+        };
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+      }
 
       mostAiKeyInput.addEventListener("input", () => {
         localStorage.setItem("mostAiKey", mostAiKeyInput.value);
@@ -1072,8 +1275,17 @@
       voiceEnabledCheck.addEventListener("change", () => {
         localStorage.setItem("voiceEnabled", voiceEnabledCheck.checked ? "1" : "");
       });
+      ttsModeSelect.addEventListener("change", () => {
+        localStorage.setItem("ttsMode", ttsModeSelect.value);
+        ttsStatusEl.textContent = "";
+      });
       testTtsBtn.addEventListener("click", () => {
-        speak("跟着 G1 做动作，加油！");
+        const mode = ttsModeSelect.value;
+        if (mode === "mostai") {
+          speakMostAi("跟着 G1 做动作，加油！");
+        } else {
+          speakBrowser("跟着 G1 做动作，加油！");
+        }
       });
 
       document.getElementById("goBtn").onclick = async () => {
@@ -1136,13 +1348,16 @@
 
       function loop() {
         try {
+          const nowLoop = performance.now();
           if (
             window.__robotLmkr &&
             robot.readyState >= 2 &&
-            fitCanvas(robot, robotCanvas)
+            fitCanvas(robot, robotCanvas) &&
+            nowLoop - lastRobotDetectAt >= DETECT_INTERVAL_MS
           ) {
             if (robot.currentTime !== lastRobotT) {
               lastRobotT = robot.currentTime;
+              lastRobotDetectAt = nowLoop;
               robotLm = detectPose("__robotLmkr", robot);
               drawPose(robotCtx, robotCanvas, robotLm, "#ffc857");
             }
@@ -1150,14 +1365,39 @@
           if (
             window.__camLmkr &&
             cam.readyState >= 2 &&
-            fitCanvas(cam, camCanvas)
+            fitCanvas(cam, camCanvas) &&
+            nowLoop - lastCamDetectAt >= DETECT_INTERVAL_MS
           ) {
-            const t = performance.now();
-            if (t !== lastCamT) {
-              lastCamT = t;
+            if (nowLoop !== lastCamT) {
+              lastCamT = nowLoop;
+              lastCamDetectAt = nowLoop;
               camLm = detectPose("__camLmkr", cam);
               drawPose(camCtx, camCanvas, camLm, "#3ee08f");
             }
+          }
+          const frameGuide = document.getElementById("frameGuide");
+          if (frameGuide) {
+            const visible = bodyVisible(camLm);
+            const camActive = !!cam.srcObject;
+            frameGuide.classList.toggle("show", camActive && !visible);
+            frameGuide.classList.toggle("ok", camActive && visible);
+            if (camActive) {
+              frameGuide.querySelector(".frame-text").textContent = visible
+                ? "全身已入框"
+                : "摄像头需平视、与胸口/肩膀同高，并拍到全身";
+            }
+          }
+          const angleHint = cameraAngleHint(camLm);
+          if (angleHint && cam.srcObject && !running) {
+            setTalk(angleHint, "wait");
+            talkMetaEl.textContent = "摄像头角度不正确，无法识别姿态";
+            skillFillEl.style.width = "0%";
+          }
+          // Lightweight diagnostics: show whether both streams are being detected.
+          if (statusEl && nowLoop % 1000 < 30) {
+            const robotOk = robotLm ? "✓" : "✗";
+            const camOk = camLm ? "✓" : "✗";
+            statusEl.textContent = `检测状态 · 机器人骨架:${robotOk} 摄像头骨架:${camOk} · ${running ? "对标中" : "等待开始"}`;
           }
           const you = metrics(camLm);
           const g1 = metrics(robotLm);

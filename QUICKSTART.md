@@ -5,10 +5,20 @@
 在 `Mirror-Lean` 仓库根目录运行：
 
 ```bash
-python -m http.server 8081
+python serve.py
 ```
 
-> 如果 `8081` 被占用，可换 `8082`、`8083` 等任意空闲端口。
+> 如果 `8081` 被占用，可设置环境变量 `PORT=8082` 或在 `.env` 里指定 `PORT`。
+
+### 配置 most.ai 语音 key（可选）
+
+如果需要使用 most.ai TTS，把 key 写入仓库根目录的 `.env` 文件：
+
+```bash
+MOSTAI_API_KEY=your-key-here
+```
+
+`.env` 已被加入 `.gitignore`，不会提交到 Git。
 
 ## 2. 打开前端页面
 
