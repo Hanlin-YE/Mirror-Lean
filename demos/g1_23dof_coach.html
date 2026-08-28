@@ -841,7 +841,15 @@
           ttsStatusEl.textContent = "已发送到机器人";
         } catch (err) {
           console.error("Send to robot failed:", err);
-          ttsStatusEl.textContent = "发送到机器人失败：" + err.message;
+          ttsStatusEl.textContent = "发送到机器人失败：" + err.message + "，已切换本机播放";
+          // Fall back to local playback so the user still hears the coach voice.
+          const localUrl = URL.createObjectURL(blob);
+          if (ttsAudio) {
+            ttsAudio.pause();
+            ttsAudio.currentTime = 0;
+          }
+          ttsAudio = new Audio(localUrl);
+          ttsAudio.play().catch((e) => console.warn("local fallback play failed:", e));
         } finally {
           setTimeout(() => { ttsProgressEl.style.display = "none"; }, 1500);
         }
