@@ -676,12 +676,15 @@
           ? { screenL: "lKick", screenR: "rKick" }
           : { screenL: "rKick", screenR: "lKick" };
         const map = [
-          { g1: arm.screenL, you: "rPunch", text: "再高一点", partName: "右手", feature: "right_arm_elevation", min: 0.16, threshold: 0.5 },
-          { g1: arm.screenR, you: "lPunch", text: "再高一点", partName: "左手", feature: "left_arm_elevation", min: 0.16, threshold: 0.5 },
-          { g1: arm.reachL, you: "rReach", text: "再伸出去", partName: "右手", feature: "right_arm_reach", min: 0.20, threshold: 0.5 },
-          { g1: arm.reachR, you: "lReach", text: "再伸出去", partName: "左手", feature: "left_arm_reach", min: 0.20, threshold: 0.5 },
-          { g1: leg.screenL, you: "rKick", text: "再高一点", partName: "右腿", feature: "right_leg_elevation", min: 0.12, threshold: 0.5 },
-          { g1: leg.screenR, you: "lKick", text: "再高一点", partName: "左腿", feature: "left_leg_elevation", min: 0.12, threshold: 0.5 },
+          // min: essentially perfect
+          // threshold: still counts as a match (scoring & realtime warnings)
+          // serious: clearly wrong, highlighted red
+          { g1: arm.screenL, you: "rPunch", text: "再高一点", partName: "右手", feature: "right_arm_elevation", min: 0.16, threshold: 0.35, serious: 0.6 },
+          { g1: arm.screenR, you: "lPunch", text: "再高一点", partName: "左手", feature: "left_arm_elevation", min: 0.16, threshold: 0.35, serious: 0.6 },
+          { g1: arm.reachL, you: "rReach", text: "再伸出去", partName: "右手", feature: "right_arm_reach", min: 0.20, threshold: 0.35, serious: 0.6 },
+          { g1: arm.reachR, you: "lReach", text: "再伸出去", partName: "左手", feature: "left_arm_reach", min: 0.20, threshold: 0.35, serious: 0.6 },
+          { g1: leg.screenL, you: "rKick", text: "再高一点", partName: "右腿", feature: "right_leg_elevation", min: 0.12, threshold: 0.35, serious: 0.6 },
+          { g1: leg.screenR, you: "lKick", text: "再高一点", partName: "左腿", feature: "left_leg_elevation", min: 0.12, threshold: 0.35, serious: 0.6 },
         ];
         return map.map((s) => ({
           ...s,
@@ -749,7 +752,7 @@
         const labels = items.map((i) => (i.partName || i.feature) + i.text);
         const gaps = items.map((i) => i.gap);
         const colors = items.map((i) =>
-          i.gap > i.min ? "#ff5d6c" : "#3ee08f"
+          i.maxAbs > (i.serious || i.threshold) ? "#ff5d6c" : "#3ee08f"
         );
         const el = document.getElementById("errorChart");
         if (!items.length) {
@@ -1119,10 +1122,12 @@
         const top = live[0];
         const part = top.partName || top.feature;
         const primaryMessage =
-          top.gap > top.min
+          top.maxAbs > top.threshold
             ? `${part}${top.text}，还差 ${top.maxAbs.toFixed(2)}，加油！`
-            : `${part}已经很接近了（差距 ${top.maxAbs.toFixed(2)}），继续保持！`;
-        const kind = top.gap > top.min ? "bad" : "wait";
+            : top.maxAbs > top.min
+            ? `${part}已经接近了（差距 ${top.maxAbs.toFixed(2)}），继续保持！`
+            : `${part}动作很标准，继续保持！`;
+        const kind = top.maxAbs > top.serious ? "bad" : "wait";
         const userMoving = isUserMoving(now);
         if (running && userMoving) {
           danceLog.push({
@@ -1133,6 +1138,7 @@
               feature: top.feature,
               maxAbs: top.maxAbs,
               threshold: top.threshold,
+              serious: top.serious,
               min: top.min,
               text: top.text,
             },
@@ -1141,6 +1147,7 @@
               feature: i.feature,
               maxAbs: i.maxAbs,
               threshold: i.threshold,
+              serious: i.serious,
               min: i.min,
               text: i.text,
             })),
@@ -1156,7 +1163,7 @@
           skillFillEl.style.width = "0%";
           return;
         }
-        const similarity = Math.max(0, 1 - Math.min(top.maxAbs / top.threshold, 1)) * 100;
+        const similarity = Math.max(0, 1 - Math.min(top.maxAbs / top.serious, 1)) * 100;
         const skill = Math.round(similarity);
         if (talkEl.textContent !== primaryMessage) setTalk(primaryMessage, kind);
         if (voiceEnabledCheck.checked && now - lastSpokenAt >= 10000) {
@@ -1197,7 +1204,7 @@
             parts[key].gap += item.maxAbs;
             parts[key].threshold += item.threshold;
             parts[key].count++;
-            frameScore += 1 - Math.min(item.maxAbs / item.threshold, 1);
+            frameScore += 1 - Math.min(item.maxAbs / item.serious, 1);
           });
           totalFrameScore += frameScore / frame.all.length;
           frameCount++;
@@ -1217,7 +1224,7 @@
           text: p.text,
           score: Math.max(
             0,
-            Math.min(100, Math.round(100 - Math.min(p.gap / p.threshold, 1) * 100))
+            Math.min(100, Math.round(100 - Math.min(p.gap / p.serious, 1) * 100))
           ),
         }));
         partEntries.sort((a, b) => a.score - b.score);
@@ -1247,7 +1254,7 @@
             const status =
               f.top.maxAbs <= f.top.min
                 ? "ok"
-                : f.top.maxAbs <= f.top.threshold
+                : f.top.maxAbs <= f.top.serious
                 ? "warn"
                 : "bad";
             return `
@@ -1268,7 +1275,7 @@
           <p class="report-tip">基础建议：先单独练习手臂动作，再练习腿部动作，最后把上下半身连起来。</p>
           <h3>每秒明细</h3>
           <div class="tl-grid">${tlHtml}</div>
-          <p class="report-tip">图例：绿色 = 整体匹配，黄色 = 整体接近，红色 = 整体未匹配</p>
+          <p class="report-tip">图例：绿色 = 动作匹配，黄色 = 轻微偏差，红色 = 明显偏差</p>
         `;
         modal.style.display = "flex";
       }
