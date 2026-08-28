@@ -27,6 +27,25 @@ OPENAI_API_KEY=your-openai-key
 
 `.env` 已被加入 `.gitignore`，不会提交到 Git。
 
+### 让机器人扬声器播报（可选）
+
+如果希望语音从机器人的扬声器发出（而不是笔记本）：
+
+1. 把 `robot-speaker-server.py` 复制到机器人上，在机器人端运行：
+
+   ```bash
+   python3 robot-speaker-server.py
+   # 默认监听 0.0.0.0:8123
+   ```
+
+2. 在前端页面 **语音教练** 卡片中：
+   - 选择输出到 **机器人扬声器**
+   - 填入地址，例如 `http://192.168.52.241:8123`
+   - 选择 OpenAI TTS（推荐）或 most.ai / 浏览器语音
+
+   当使用 OpenAI / most.ai 时，笔记本负责调用云端 TTS，再把音频字节发给机器人播放；
+   当使用浏览器语音时，会把文本发给机器人，由机器人用本地 TTS（espeak/say/pyttsx3）朗读。
+
 ## 2. 打开前端页面
 
 - **主入口 / PRD Hub：** `http://localhost:8081/frontend/index.html`
