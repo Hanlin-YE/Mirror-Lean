@@ -6,6 +6,7 @@ Run with:
 Then open http://localhost:8081/demos/g1_23dof_coach.html
 """
 import os
+import urllib.request
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
@@ -27,6 +28,53 @@ def load_dotenv():
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
+
+    def _send_json(self, code, body):
+        data = body.encode("utf-8") if isinstance(body, str) else body
+        self.send_response(code)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
+    def _proxy_to_robot(self, robot_path, method, content_type, body):
+        robot_url = f"http://192.168.52.241:8123{robot_path}"
+        req = urllib.request.Request(robot_url, data=body, method=method)
+        if content_type:
+            req.add_header("Content-Type", content_type)
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return resp.status, resp.read()
+        except urllib.error.HTTPError as e:
+            return e.code, e.read()
+        except Exception as e:
+            return 502, str(e).encode("utf-8")
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        if parsed.path == "/proxy/robot-speaker":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            content_type = self.headers.get("Content-Type", "audio/mpeg")
+            status, resp_body = self._proxy_to_robot("/speak", "POST", content_type, body)
+            self._send_json(status, resp_body)
+            return
+        if parsed.path == "/proxy/robot-speaker-text":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            content_type = self.headers.get("Content-Type", "application/json")
+            status, resp_body = self._proxy_to_robot("/speak-text", "POST", content_type, body)
+            self._send_json(status, resp_body)
+            return
+        self._send_json(404, "not found")
 
     def do_GET(self):
         parsed = urlparse(self.path)

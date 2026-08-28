@@ -543,7 +543,8 @@
       const openaiVoiceSelect = document.getElementById("openaiVoiceSelect");
       const speakerModeSelect = document.getElementById("speakerMode");
       const voiceEnabledCheck = document.getElementById("voiceEnabled");
-      const DEFAULT_ROBOT_SPEAKER_URL = "http://192.168.52.241:8123";
+      const ROBOT_SPEAK_URL = `${window.location.origin}/proxy/robot-speaker`;
+      const ROBOT_SPEAK_TEXT_URL = `${window.location.origin}/proxy/robot-speaker-text`;
       const testTtsBtn = document.getElementById("testTtsBtn");
       const ttsModeSelect = document.getElementById("ttsMode");
       const ttsStatusEl = document.getElementById("ttsStatus");
@@ -808,14 +809,13 @@
       }
 
       async function sendRobotAudio(blob) {
-        const url = DEFAULT_ROBOT_SPEAKER_URL;
         ttsStatusEl.textContent = "正在发送语音到机器人…";
         ttsProgressEl.style.display = "block";
         ttsProgressEl.value = 0;
         try {
           await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.timeout = 10000;
+            xhr.timeout = 15000;
             xhr.upload.addEventListener("progress", (e) => {
               if (e.lengthComputable) {
                 const pct = Math.round((e.loaded / e.total) * 100);
@@ -833,7 +833,7 @@
             xhr.addEventListener("error", () => reject(new Error("network error")));
             xhr.addEventListener("timeout", () => reject(new Error("timeout: 机器人 speaker 没有响应")));
             xhr.addEventListener("abort", () => reject(new Error("aborted")));
-            xhr.open("POST", `${url}/speak`);
+            xhr.open("POST", ROBOT_SPEAK_URL);
             xhr.setRequestHeader("Content-Type", "audio/mpeg");
             xhr.send(blob);
           });
@@ -856,9 +856,8 @@
       }
 
       async function sendRobotText(text) {
-        const url = DEFAULT_ROBOT_SPEAKER_URL;
         try {
-          const res = await fetch(`${url}/speak-text`, {
+          const res = await fetch(ROBOT_SPEAK_TEXT_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text }),
