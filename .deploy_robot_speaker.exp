@@ -36,12 +36,12 @@ proc wait_shell {msg} {
     }
 }
 
-puts "[1/5] Connecting to ${user}@${host} and creating ${remote_dir}..."
+puts "\[1/5\] Connecting to ${user}@${host} and creating ${remote_dir}..."
 spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "mkdir -p ${remote_dir}"
 handle_auth
 wait_shell "creating remote dir"
 
-puts "[2/5] Copying robot-speaker-server.py, robot-tts.cc, CMakeLists.txt..."
+puts "\[2/5\] Copying robot-speaker-server.py, robot-tts.cc, CMakeLists.txt..."
 spawn scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null robot-speaker-server.py robot-tts.cc CMakeLists.txt ${user}@${host}:${remote_dir}/
 handle_auth
 expect {
@@ -53,17 +53,17 @@ expect {
     }
 }
 
-puts "[3/5] Building TTS helper on the robot (this may take 30-90 seconds)..."
+puts "\[3/5\] Building TTS helper on the robot (this may take 30-90 seconds)..."
 spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "cd ${remote_dir} && rm -rf build && mkdir build && cd build && cmake .. && make -j\\$(nproc)"
 handle_auth
 wait_shell "building TTS helper"
 
-puts "[4/5] Stopping old robot-speaker-server..."
+puts "\[4/5\] Stopping old robot-speaker-server..."
 spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "pkill -f robot-speaker-server.py || true"
 handle_auth
 wait_shell "stopping old server"
 
-puts "[5/5] Starting new robot-speaker-server..."
+puts "\[5/5\] Starting new robot-speaker-server..."
 spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "cd ${remote_dir} && nohup python3 robot-speaker-server.py > /tmp/robot-speaker.log 2>&1 &"
 handle_auth
 wait_shell "starting new server"
