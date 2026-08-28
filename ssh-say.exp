@@ -1,0 +1,13 @@
+#!/usr/bin/expect -f
+# ssh-say.exp - run say.py on the G1 robot via SSH with password auth.
+# Usage: expect ssh-say.exp "<already-shell-quoted-text>"
+set timeout 30
+if {[llength $argv] < 1} { puts stderr "usage: ssh-say.exp <text>"; exit 1 }
+set text [lindex $argv 0]
+spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null unitree@192.168.52.241 "python3 /home/unitree/say.py eth0 $text"
+expect {
+    -re "password:\\s*" { send -- "123\r"; exp_continue }
+    -re "\\)\\s*\\?" { send -- "1\r"; exp_continue }
+    eof { }
+    timeout { puts stderr "ssh-say timed out"; exit 1 }
+}

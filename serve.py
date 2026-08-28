@@ -5,8 +5,11 @@ Run with:
     python serve.py
 Then open http://localhost:8081/demos/g1_23dof_coach.html
 """
+import json
 import os
 import http.client
+import shlex
+import subprocess
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
@@ -60,6 +63,33 @@ class Handler(SimpleHTTPRequestHandler):
         except Exception as e:
             return 502, str(e).encode("utf-8")
 
+    def _robot_say_via_ssh(self, text: str) -> tuple:
+        """Run the robot's say.py via SSH+expect (password auth).
+
+        The robot-side command is confirmed working:
+            ssh unitree@192.168.52.241 "python3 ~/say.py eth0 '...'"
+        """
+        if not text:
+            return 400, b"text required"
+        # Shell-quote the text so single quotes inside do not break the SSH command.
+        safe_text = "'" + text.replace("'", "'\\''") + "'"
+        expect_script = ROOT / "ssh-say.exp"
+        try:
+            result = subprocess.run(
+                ["expect", str(expect_script), safe_text],
+                capture_output=True,
+                text=True,
+                timeout=25,
+            )
+            if result.returncode == 0:
+                return 200, b"spoken"
+            err = (result.stderr or result.stdout or "expect/ssh failed").encode("utf-8")
+            return 502, err
+        except subprocess.TimeoutExpired:
+            return 504, b"ssh say timed out"
+        except Exception as e:
+            return 502, str(e).encode("utf-8")
+
     def do_POST(self):
         parsed = urlparse(self.path)
         if parsed.path == "/proxy/robot-speaker":
@@ -72,8 +102,13 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/proxy/robot-speaker-text":
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length)
-            content_type = self.headers.get("Content-Type", "application/json")
-            status, resp_body = self._proxy_to_robot("/speak-text", "POST", content_type, body)
+            try:
+                payload = json.loads(body.decode("utf-8"))
+                text = payload.get("text", "").strip()
+            except Exception:
+                self._send_json(400, b"invalid json")
+                return
+            status, resp_body = self._robot_say_via_ssh(text)
             self._send_json(status, resp_body)
             return
         self._send_json(404, "not found")
