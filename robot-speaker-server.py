@@ -124,8 +124,33 @@ def play_audio_bytes(data: bytes, content_type: str = "audio/mpeg") -> bool:
             pass
 
 
+def detect_speaker_id(text: str) -> int:
+    """Unitree TTS: 0 = Chinese/Auto, 1 = English."""
+    for ch in text:
+        if "\u4e00" <= ch <= "\u9fff":
+            return 0
+    return 1
+
+
+def speak_text_unitree(text: str) -> bool:
+    """Speak text using the Unitree G1 stock audio service (AudioClient::TtsMaker).
+
+    This relies on the companion C++ binary ``robot-tts`` built from
+    ``robot-tts.cc`` against the on-robot unitree_sdk2.
+    """
+    bin_path = os.environ.get("ROBOT_TTS_BIN", os.path.join(os.path.dirname(__file__), "build", "robot-tts"))
+    iface = os.environ.get("ROBOT_TTS_IFACE", "eth0")
+    if not os.path.isfile(bin_path):
+        log(f"robot-tts binary not found at {bin_path}")
+        return False
+
+    speaker_id = detect_speaker_id(text)
+    log(f"speaking with Unitree AudioClient TtsMaker (speaker_id={speaker_id})")
+    return run_ok([bin_path, iface, text, str(speaker_id)], timeout=15)
+
+
 def speak_text_local(text: str) -> bool:
-    """Speak text using local TTS engines."""
+    """Speak text using local TTS engines as a fallback."""
     # Try espeak with Chinese voice hint.
     if shutil.which("espeak"):
         log("speaking with espeak")
@@ -192,11 +217,11 @@ class Handler(BaseHTTPRequestHandler):
             if not text:
                 self._send(400, b"text required")
                 return
-            ok = speak_text_local(text)
+            ok = speak_text_unitree(text) or speak_text_local(text)
             if ok:
                 self._send(200, b"spoken")
             else:
-                self._send(500, b"no local tts available")
+                self._send(500, b"tts failed")
         else:
             self._send(404, b"not found")
 

@@ -1,0 +1,38 @@
+#!/usr/bin/expect -f
+# Password-based deployment for the robot speaker server + Unitree stock TTS helper.
+# Usage: expect .deploy_robot_speaker.exp
+set timeout 60
+set user "unitree"
+set host "192.168.52.241"
+set pass "123"
+set remote_dir "/home/unitree/robot-speaker"
+
+proc handle_prompts {} {
+    global pass
+    expect {
+        -re "password:\\s*" { send -- "$pass\r"; exp_continue }
+        -re "\\) \\?" { send -- "1\r"; exp_continue }
+        -re "\\\\$\\s+" { }
+        -re "\\]\\#\\s+" { }
+        timeout { error "timed out waiting for shell prompt" }
+    }
+}
+
+# 1. Make remote directory
+spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "mkdir -p ${remote_dir}"
+handle_prompts
+
+# 2. Copy files
+spawn scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null robot-speaker-server.py robot-tts.cc CMakeLists.txt ${user}@${host}:${remote_dir}/
+handle_prompts
+
+# 3. Build TTS helper on the robot
+spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "cd ${remote_dir} && rm -rf build && mkdir build && cd build && cmake .. && make -j\\$(nproc)"
+handle_prompts
+
+# 4. Stop old server and start the new one
+spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "pkill -f robot-speaker-server.py || true; cd ${remote_dir} && nohup python3 robot-speaker-server.py > /tmp/robot-speaker.log 2>&1 &"
+handle_prompts
+
+puts "Deployment complete. View logs with:"
+puts "  ssh ${user}@${host} 'tail -f /tmp/robot-speaker.log'"
