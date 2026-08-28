@@ -679,12 +679,12 @@
           // min: essentially perfect
           // threshold: still counts as a match (scoring & realtime warnings)
           // serious: clearly wrong, highlighted red
-          { g1: arm.screenL, you: "rPunch", text: "再高一点", partName: "右手", feature: "right_arm_elevation", min: 0.16, threshold: 0.35, serious: 0.6 },
-          { g1: arm.screenR, you: "lPunch", text: "再高一点", partName: "左手", feature: "left_arm_elevation", min: 0.16, threshold: 0.35, serious: 0.6 },
-          { g1: arm.reachL, you: "rReach", text: "再伸出去", partName: "右手", feature: "right_arm_reach", min: 0.20, threshold: 0.35, serious: 0.6 },
-          { g1: arm.reachR, you: "lReach", text: "再伸出去", partName: "左手", feature: "left_arm_reach", min: 0.20, threshold: 0.35, serious: 0.6 },
-          { g1: leg.screenL, you: "rKick", text: "再高一点", partName: "右腿", feature: "right_leg_elevation", min: 0.12, threshold: 0.35, serious: 0.6 },
-          { g1: leg.screenR, you: "lKick", text: "再高一点", partName: "左腿", feature: "left_leg_elevation", min: 0.12, threshold: 0.35, serious: 0.6 },
+          { g1: arm.screenL, you: "rPunch", text: "再高一点", partName: "右手", feature: "right_arm_elevation", min: 0.20, threshold: 0.50, serious: 0.85 },
+          { g1: arm.screenR, you: "lPunch", text: "再高一点", partName: "左手", feature: "left_arm_elevation", min: 0.20, threshold: 0.50, serious: 0.85 },
+          { g1: arm.reachL, you: "rReach", text: "再伸出去", partName: "右手", feature: "right_arm_reach", min: 0.25, threshold: 0.50, serious: 0.85 },
+          { g1: arm.reachR, you: "lReach", text: "再伸出去", partName: "左手", feature: "left_arm_reach", min: 0.25, threshold: 0.50, serious: 0.85 },
+          { g1: leg.screenL, you: "rKick", text: "再高一点", partName: "右腿", feature: "right_leg_elevation", min: 0.18, threshold: 0.50, serious: 0.85 },
+          { g1: leg.screenR, you: "lKick", text: "再高一点", partName: "左腿", feature: "left_leg_elevation", min: 0.18, threshold: 0.50, serious: 0.85 },
         ];
         return map.map((s) => ({
           ...s,
@@ -1228,7 +1228,7 @@
           ),
         }));
         partEntries.sort((a, b) => a.score - b.score);
-        const weak = partEntries.filter((p) => p.score < 70);
+        const weak = partEntries.filter((p) => p.score < 55);
         const comment =
           overallScore >= 80
             ? "整体表现很棒！动作和 G1 非常同步。"
