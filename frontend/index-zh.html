@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mirror · 镜身 — 通过机器人提供自然、可控、持续的动作训练反馈</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', 'Microsoft YaHei', 'PingFang SC', sans-serif; }
+    .glass { background: rgba(20, 27, 46, 0.9); border: 1px solid rgba(42, 53, 88, 0.6); }
+    .glow { box-shadow: 0 0 40px -10px rgba(56, 189, 248, 0.25); }
+    .card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4); }
+    a { color: #38bdf8; }
+    a:hover { color: #7dd3fc; }
+    .hero-bg {
+      background:
+        radial-gradient(circle at 30% 20%, rgba(56, 189, 248, 0.15) 0%, transparent 35%),
+        radial-gradient(circle at 70% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 35%),
+        #0b1020;
+    }
+    .back-to-top {
+      position: fixed;
+      right: 1.5rem;
+      bottom: 1.5rem;
+      z-index: 50;
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 9999px;
+      background: rgba(20, 27, 46, 0.95);
+      border: 1px solid rgba(42, 53, 88, 0.8);
+      color: #38bdf8;
+      font-size: 1.25rem;
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s;
+    }
+    .back-to-top:hover { background: #38bdf8; color: #0b1020; }
+  </style>
+</head>
+<body id="top" class="bg-slate-950 text-slate-100 min-h-screen">
+
+  <nav class="glass sticky top-0 z-50 border-b border-slate-800 bg-gradient-to-r from-slate-900/95 to-slate-800/95">
+    <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="#top" class="font-semibold text-lg tracking-tight flex items-center gap-2">
+        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-sm">M</span>
+        Mirror · 镜身
+      </a>
+      <div class="flex items-center gap-2 text-sm">
+        <a href="index.html" class="px-2 py-1 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition">EN</a>
+        <span class="px-2 py-1 rounded-md bg-sky-400/10 text-sky-400 font-medium">中文</span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-5xl mx-auto px-6 py-20 md:py-28">
+    <section class="text-center mb-24 -mx-6 px-6 py-16 md:py-20 hero-bg rounded-3xl">
+      <h1 class="text-3xl md:text-5xl font-bold mb-8 leading-tight">
+        通过机器人提供自然、可控、持续的动作训练反馈，<br class="hidden md:block" />
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400">让身体真正学会。</span>
+      </h1>
+      <p class="text-slate-400 text-lg md:text-xl mb-10">
+        Difference Detection → User-controlled Reminder → Focused Retry → Learn
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="../demos/g1_23dof_coach.html" class="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-sky-400 text-slate-950 font-semibold hover:bg-sky-300 transition glow">
+          开始实时对标
+        </a>
+        <a href="../error_detection/frontend/index.html" class="inline-flex items-center gap-2 px-8 py-4 rounded-xl glass text-white font-medium hover:bg-slate-800 transition">
+          查看误差报告
+        </a>
+      </div>
+    </section>
+
+    <section class="grid md:grid-cols-3 gap-6 mb-24">
+      <div class="card glass rounded-2xl p-6">
+        <div class="text-sky-400 text-3xl mb-4">01</div>
+        <h3 class="text-xl font-semibold mb-2">识别关键动作差异</h3>
+        <p class="text-slate-400 text-sm">对比用户与标准动作，找到置信度最高、最值得优先修正的一个差异。</p>
+      </div>
+      <div class="card glass rounded-2xl p-6">
+        <div class="text-sky-400 text-3xl mb-4">02</div>
+        <h3 class="text-xl font-semibold mb-2">提醒机制由用户设置</h3>
+        <p class="text-slate-400 text-sm">用户选择中途提醒、动作后复盘或自适应模式，并决定语音、屏幕或机器人手势提示。</p>
+      </div>
+      <div class="card glass rounded-2xl p-6">
+        <div class="text-sky-400 text-3xl mb-4">03</div>
+        <h3 class="text-xl font-semibold mb-2">反馈服务于下一次改进</h3>
+        <p class="text-slate-400 text-sm">每次只给出一个可执行建议，针对性复测，并记录长期能力变化与提示依赖。</p>
+      </div>
+    </section>
+
+    <section class="mb-24">
+      <h2 class="text-2xl md:text-3xl font-bold mb-6 text-center">看懂标准动作，不等于知道自己错在哪里。</h2>
+      <p class="text-slate-400 text-center max-w-2xl mx-auto">用户缺的不是更多教学内容，而是针对自己的动作反馈：哪里不同、应该先改什么。AI 姿态识别已进入实时纠正阶段，但仍受限于场景、硬件与反馈方式。</p>
+    </section>
+
+    <section class="mb-24">
+      <h2 class="text-2xl font-bold mb-8">行业对比</h2>
+      <div class="space-y-6">
+        <div class="glass rounded-2xl p-6">
+          <h3 class="font-semibold text-lg mb-2">Tempo</h3>
+          <p class="text-slate-400 text-sm"><strong class="text-slate-200">方案</strong> 3D 传感器识别动作幅度、次数与姿势，提供实时纠正。<br><strong class="text-slate-200">现状</strong> 聚焦力量训练；仅部分动作与课程支持反馈，依赖专用硬件和固定空间。<br><a href="https://support.tempo.fit/support/solutions/articles/151000154714-3d-tempo-vision-form-feedback" target="_blank">官方资料 ↗</a></p>
+        </div>
+        <div class="glass rounded-2xl p-6">
+          <h3 class="font-semibold text-lg mb-2">Kaia Motion Coach</h3>
+          <p class="text-slate-400 text-sm"><strong class="text-slate-200">方案</strong> 使用手机或平板摄像头分析姿态，提供实时视听反馈。<br><strong class="text-slate-200">现状</strong> 无需传感器，聚焦肌肉骨骼康复；不覆盖街舞等开放式身体技能。<br><a href="https://kaiahealth.com/motion-coach/" target="_blank">官方资料 ↗</a></p>
+        </div>
+        <div class="glass rounded-2xl p-6">
+          <h3 class="font-semibold text-lg mb-2">Kemtai</h3>
+          <p class="text-slate-400 text-sm"><strong class="text-slate-200">方案</strong> 普通摄像头追踪身体关键点，提供实时纠正、评估、API 与白标能力。<br><strong class="text-slate-200">现状</strong> 从大众健身转向医疗康复和企业服务；官方称支持 2,000+ 动作及变体。<br><a href="https://kemtai.com/product/" target="_blank">官方资料 ↗</a></p>
+        </div>
+        <div class="glass rounded-2xl p-6">
+          <h3 class="font-semibold text-lg mb-2">Peloton Guide</h3>
+          <p class="text-slate-400 text-sm"><strong class="text-slate-200">方案</strong> 摄像头完成动作追踪、次数统计，并与屏幕课程结合。<br><strong class="text-slate-200">现状</strong> 2025 年 7 月停止销售及向新用户提供会员，显示独立硬件路径的商业挑战。<br><a href="https://investor.onepeloton.com/static-files/aab8756a-98cc-445c-b567-0c5ac728aa9b" target="_blank">官方年报 ↗</a></p>
+        </div>
+      </div>
+      <p class="text-slate-300 mt-8 glass rounded-2xl p-6 border-l-4 border-sky-400">
+        <strong class="text-sky-300">Mirror Lean 的机会</strong>：将识别出的动作差异，通过用户可控的具身交互，在合适时机转化为能够执行的训练反馈。
+      </p>
+    </section>
+
+    <section class="mb-24">
+      <h2 class="text-2xl font-bold mb-6">从一段标准动作，形成尊重用户选择的成长闭环。</h2>
+      <p class="text-slate-400 mb-6">系统提取动作时序、关键身体关系、节奏和轨迹；教练确认教学重点，形成可解释的标准动作模型。</p>
+      <div class="glass rounded-2xl p-6">
+        <h3 class="font-semibold mb-4">输入标准动作视频</h3>
+        <p class="text-slate-400 text-sm">支持手机拍摄的普通视频、舞蹈动作片段或训练课程。使用 MediaPipe + 标准特征提取，生成 G1 可执行的参考动作。</p>
+      </div>
+    </section>
+
+    <section class="mb-24">
+      <h2 class="text-2xl font-bold mb-6">项目演示视频</h2>
+      <div class="glass rounded-2xl p-6 glow">
+        <video controls class="w-full rounded-xl" poster="">
+          <source src="../videos/dance.mp4" type="video/mp4" />
+          您的浏览器不支持 HTML5 视频。
+        </video>
+        <p class="text-slate-400 text-sm mt-4">如视频无法播放，可从 <a href="../videos/" target="_blank">videos/</a> 目录下载原始文件。</p>
+      </div>
+    </section>
+
+    <section class="mb-24">
+      <h2 class="text-2xl md:text-3xl font-bold mb-8 text-center">屏幕只能展示动作，机器人让关键差异在真实空间中被看见。</h2>
+      <p class="text-slate-400 text-center max-w-2xl mx-auto mb-8">机器人通过视线、指向、语音和节奏提示，在用户选择的时机把注意力带到一个关键差异，帮助用户立即调整并重新尝试。</p>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="glass rounded-2xl p-6">
+          <h3 class="font-semibold text-lg mb-3">Camera + Screen</h3>
+          <ul class="list-disc list-inside text-slate-400 text-sm space-y-1">
+            <li>成本低、部署成熟、适合骨架与数据展示</li>
+            <li>主要等待用户主动查看和理解反馈</li>
+            <li>提醒容易变成通知或训练后的报告</li>
+          </ul>
+        </div>
+        <div class="glass rounded-2xl p-6 border border-sky-400/30">
+          <h3 class="font-semibold text-lg mb-3 text-sky-300">Embodied Companion</h3>
+          <ul class="list-disc list-inside text-slate-400 text-sm space-y-1">
+            <li>用视线、指向、语音和节奏提示聚焦一个关键差异</li>
+            <li>在共享空间中建立自然的轮流练习与反馈关系</li>
+            <li>记住用户偏好的提醒时机，并随能力提升减少打扰</li>
+          </ul>
+        </div>
+      </div>
+      <p class="text-slate-300 mt-8 text-center">机器人不复现错误动作，也不替用户决定；它负责发现差异、询问偏好、适时提醒和记录成长。</p>
+    </section>
+
+    <section class="mb-24">
+      <h2 class="text-2xl md:text-3xl font-bold mb-6 text-center">Memory 不是保存录像，而是建立“这个人如何学会”的模型。</h2>
+      <p class="text-slate-400 text-center max-w-2xl mx-auto">通过长期记录每一次练习的误差分布、提醒偏好和修正路径，形成个性化的学习曲线，让机器人越用越懂用户。</p>
+    </section>
+
+    <section class="mb-24">
+      <h2 class="text-2xl font-bold mb-6">成长路径</h2>
+      <ol class="list-decimal list-inside space-y-4 text-slate-300 glass rounded-2xl p-8">
+        <li><strong>证明差异提醒闭环</strong>：一个动作、一个关键差异、三种提醒选择和一次修正。</li>
+        <li><strong>证明学习增益</strong>：3–5 个动作，小规模对照实验与学习保持测试。</li>
+        <li><strong>场馆付费验证</strong>：舞蹈室、健身房与教练协作；课程增值和课后训练。</li>
+        <li><strong>软硬件解耦</strong>：动作内容、身体模型、提醒策略和评估层跨终端复用。</li>
+      </ol>
+    </section>
+
+    <section class="text-center mb-24">
+      <h2 class="text-2xl md:text-3xl font-bold mb-6">普通机器人展示的是“机器人学会了什么”。<br class="hidden md:block" />我们展示“人因为机器人学会了什么”。</h2>
+      <a href="#top" class="inline-block mt-6 text-sky-400 hover:text-sky-300">重新浏览 ↑</a>
+    </section>
+  </main>
+
+  <footer class="border-t border-slate-800 py-8 text-center text-slate-500 text-sm">
+    Mirror · 镜身 — VentureD Hackathon 2026 · Track 02 Physical AI
+  </footer>
+
+  <a href="#top" class="back-to-top" aria-label="回到顶部">↑</a>
+
+</body>
+</html>

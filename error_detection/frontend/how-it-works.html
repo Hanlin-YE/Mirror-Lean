@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How Error Detection Works — Mirror · 镜身</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', 'Microsoft YaHei', 'PingFang SC', sans-serif; }
+    .glass { background: rgba(20, 27, 46, 0.85); border: 1px solid rgba(42, 53, 88, 0.6); }
+    .glow { box-shadow: 0 0 40px -10px rgba(56, 189, 248, 0.25); }
+    .step { counter-increment: step; }
+    .step::before { content: counter(step); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+  <nav class="glass sticky top-0 z-50 border-b border-slate-800">
+    <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="../../frontend/index.html" class="font-semibold text-lg tracking-tight hover:text-sky-400 transition">Mirror · 镜身</a>
+      <a href="index.html" class="text-sm text-slate-400 hover:text-white transition">Visualizer</a>
+    </div>
+  </nav>
+
+  <main class="max-w-5xl mx-auto px-6 py-16">
+    <section class="text-center mb-16">
+      <h1 class="text-4xl md:text-5xl font-bold mb-4">How Error Detection Works</h1>
+      <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+        We compare a human motion attempt against a robot reference and surface the most important difference to drive the mirror/feedback loop.
+      </p>
+    </section>
+
+    <section class="glass rounded-2xl p-8 mb-10 glow">
+      <h2 class="text-2xl font-semibold mb-4 text-sky-400">The Pipeline</h2>
+      <ol class="list-decimal list-inside space-y-2 text-slate-300 mb-6">
+        <li><strong>Canonical pose extraction</strong> — both the G1 reference and the human are reduced to the same 8 interpretable angle features (arm elevation / azimuth, elbow flexion, torso yaw / lean).</li>
+        <li><strong>Temporal alignment</strong> — <code>DTWAligner</code> uses Dynamic Time Warping so timing drift does not break the comparison.</li>
+        <li><strong>Difference engine</strong> — for every aligned frame pair, we compute the per-feature signed error using shortest-path wrap-around for circular angles (e.g. 359° vs 1° = 2°).</li>
+        <li><strong>Ranking</strong> — <code>ErrorRanker</code> scores each feature by magnitude × importance × confidence to pick the single most important error to show.</li>
+        <li><strong>Output</strong> — the primary error is returned with timing lag and a ranked list for the visualizer.</li>
+      </ol>
+      <div class="grid md:grid-cols-2 gap-4 text-sm">
+        <div class="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
+          <h3 class="font-semibold text-sky-300 mb-2">Canonical Features</h3>
+          <ul class="list-disc list-inside text-slate-400 space-y-1">
+            <li>left_arm_elevation / right_arm_elevation</li>
+            <li>left_arm_azimuth / right_arm_azimuth</li>
+            <li>left_elbow_flexion / right_elbow_flexion</li>
+            <li>torso_yaw / torso_lean</li>
+          </ul>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
+          <h3 class="font-semibold text-sky-300 mb-2">Key Tricks</h3>
+          <ul class="list-disc list-inside text-slate-400 space-y-1">
+            <li>Range-normalized DTW cost so all features contribute fairly</li>
+            <li>Circular wrap-around for angles</li>
+            <li>Confidence = significance × consistency over the motion</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid md:grid-cols-3 gap-6 mb-12">
+      <a href="index.html" class="block glass rounded-2xl p-6 hover:border-sky-400 transition text-center">
+        <h3 class="text-lg font-semibold mb-2">Open Visualizer</h3>
+        <p class="text-slate-400 text-sm">Inspect DTW alignment, ranked errors and the primary error for saved JSON reports.</p>
+      </a>
+      <a href="../../demos/g1_23dof_coach.html" class="block glass rounded-2xl p-6 hover:border-sky-400 transition text-center">
+        <h3 class="text-lg font-semibold mb-2">Real-time Coach</h3>
+        <p class="text-slate-400 text-sm">Run the same comparison logic live with the camera and a reference video.</p>
+      </a>
+      <a href="../../docs/PRD.md" class="block glass rounded-2xl p-6 hover:border-sky-400 transition text-center">
+        <h3 class="text-lg font-semibold mb-2">Read the PRD</h3>
+        <p class="text-slate-400 text-sm">Product requirements, user scenarios and the full mirror loop.</p>
+      </a>
+    </section>
+
+    <section class="text-center text-slate-500 text-sm">
+      Mirror · 镜身 — VentureD Hackathon 2026 · Track 02 Physical AI
+    </section>
+  </main>
+
+</body>
+</html>

@@ -1,514 +1,798 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>G1 23DoF 对标教练</title>
-  <style>
-    :root {
-      --bg: #0b1020;
-      --panel: #141b2e;
-      --line: #2a3558;
-      --ok: #3ee08f;
-      --bad: #ff5d6c;
-      --warn: #ffc857;
-      --text: #e8eefc;
-      --muted: #8b97b8;
-    }
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-    }
-    .wrap {
-      display: grid;
-      grid-template-columns: 1fr 1fr 320px;
-      height: 100%;
-      gap: 14px;
-      padding: 14px;
-    }
-    .stage {
-      position: relative;
-      background: #070b16;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      overflow: hidden;
-      min-height: 0;
-    }
-    .tag {
-      position: absolute;
-      z-index: 3;
-      left: 12px;
-      top: 12px;
-      background: rgba(7, 11, 22, 0.75);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 4px 8px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    video, canvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      background: transparent;
-    }
-    .mirror { transform: scaleX(-1); }
-    canvas { z-index: 1; pointer-events: none; }
-    .side {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      min-height: 0;
-      overflow: auto;
-    }
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 14px 16px;
-    }
-    h1 { font-size: 18px; margin: 0 0 6px; }
-    p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-    .metric { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; }
-    .metric b { font-variant-numeric: tabular-nums; }
-    .feedback {
-      font-size: 22px;
-      font-weight: 700;
-      line-height: 1.4;
-      min-height: 70px;
-    }
-    .feedback.ok { color: var(--ok); }
-    .feedback.bad { color: var(--bad); }
-    .feedback.wait { color: var(--warn); }
-    button, .file {
-      width: 100%;
-      border: 0;
-      border-radius: 10px;
-      padding: 11px;
-      background: #3d6dff;
-      color: white;
-      font-size: 15px;
-      cursor: pointer;
-    }
-    button.ghost { background: #243056; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .file { display: block; text-align: center; background: #243056; }
-    input[type="file"] { display: none; }
-    select {
-      margin-top: 8px;
-      width: 100%;
-      background: #0d1324;
-      color: #e8eefc;
-      border: 1px solid #2a3558;
-      border-radius: 8px;
-      padding: 8px;
-    }
-    .status { font-size: 12px; color: var(--muted); margin-top: 8px; }
-    @media (max-width: 1100px) {
-      .wrap { grid-template-columns: 1fr; grid-template-rows: 28vh 28vh auto; }
-    }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="stage">
-      <div class="tag">G1 23DoF 参考 · 12 点</div>
-      <video id="robot" class="mirror" playsinline muted loop></video>
-      <canvas id="robotOverlay" class="mirror"></canvas>
-    </div>
-    <div class="stage">
-      <div class="tag">你 · 实时对标 · 12 点</div>
-      <video id="cam" class="mirror" playsinline autoplay muted></video>
-      <canvas id="camOverlay" class="mirror"></canvas>
-    </div>
-    <aside class="side">
-      <div class="card">
-        <h1>G1 23DoF 动作对标</h1>
-        <p>只比 12 个点。机器人画面左边举手，你举右手。提示按你要举的那只手说。</p>
-        <div class="status" id="status">先选 G1 参考视频（街舞或打拳都可以），再开摄像头。</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>G1 23DoF 对标教练</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #141b2e;
+        --line: #2a3558;
+        --ok: #3ee08f;
+        --bad: #ff5d6c;
+        --warn: #ffc857;
+        --text: #e8eefc;
+        --muted: #8b97b8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      }
+      .wrap {
+        display: grid;
+        grid-template-columns: 1fr 1fr 320px;
+        height: 100%;
+        gap: 14px;
+        padding: 14px;
+      }
+      .stage {
+        position: relative;
+        background: #070b16;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+        min-height: 0;
+      }
+      .tag {
+        position: absolute;
+        z-index: 3;
+        left: 12px;
+        top: 12px;
+        background: rgba(7, 11, 22, 0.75);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 4px 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      video,
+      canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: transparent;
+      }
+      .mirror {
+        transform: scaleX(-1);
+      }
+      canvas {
+        z-index: 1;
+        pointer-events: none;
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 0;
+        overflow: auto;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px 16px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 6px;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .metric {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        font-size: 13px;
+      }
+      .metric b {
+        font-variant-numeric: tabular-nums;
+      }
+      .feedback {
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1.4;
+        min-height: 70px;
+      }
+      .feedback.ok {
+        color: var(--ok);
+      }
+      .feedback.bad {
+        color: var(--bad);
+      }
+      .feedback.wait {
+        color: var(--warn);
+      }
+      button,
+      .file {
+        width: 100%;
+        border: 0;
+        border-radius: 10px;
+        padding: 11px;
+        background: #3d6dff;
+        color: white;
+        font-size: 15px;
+        cursor: pointer;
+      }
+      button.ghost {
+        background: #243056;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .file {
+        display: block;
+        text-align: center;
+        background: #243056;
+      }
+      input[type="file"] {
+        display: none;
+      }
+      select {
+        margin-top: 8px;
+        width: 100%;
+        background: #0d1324;
+        color: #e8eefc;
+        border: 1px solid #2a3558;
+        border-radius: 8px;
+        padding: 8px;
+      }
+      .status {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 8px;
+      }
+      @media (max-width: 1100px) {
+        .wrap {
+          grid-template-columns: 1fr;
+          grid-template-rows: 28vh 28vh auto;
+        }
+      }
+      #videoSelect {
+        width: 100%;
+        min-height: 280px;
+        font-size: 16px;
+        padding: 8px;
+        border-radius: 12px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        color: var(--text);
+        margin-top: 8px;
+      }
+      #videoSelect option {
+        padding: 12px 10px;
+        border-radius: 8px;
+        margin-bottom: 4px;
+      }
+      #videoSelect option:checked {
+        background: var(--ok);
+        color: var(--bg);
+      }
+      #videoSelect:focus {
+        border-color: var(--ok);
+        outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="stage">
+        <div class="tag">G1 23DoF 参考 · 12 点</div>
+        <video id="robot" class="mirror" playsinline muted loop></video>
+        <canvas id="robotOverlay" class="mirror"></canvas>
       </div>
-      <label class="file">选择 G1 参考视频
-        <input id="file" type="file" accept="video/*" />
-      </label>
+      <div class="stage">
+        <div class="tag">你 · 实时对标 · 12 点</div>
+        <video id="cam" class="mirror" playsinline autoplay muted></video>
+        <canvas id="camOverlay" class="mirror"></canvas>
+      </div>
+      <aside class="side">
+        <div class="card">
+          <h1>G1 23DoF 动作对标</h1>
+          <p>
+            只比 12 个点。机器人画面左边举手，你举右手。提示按你要举的那只手说。
+          </p>
+          <div class="status" id="status">
+            请从下方列表选择一个视频，再开摄像头。
+          </div>
+        </div>
+      <label class="file">选择 G1 参考视频</label>
+      <select id="videoSelect" size="5">
+        <option value="">— 选择示例视频 —</option>
+        <option value="../videos/1.mp4">1.mp4</option>
+        <option value="../videos/J_ShortDance14_Disco_training.mp4">J_ShortDance14_Disco_training.mp4</option>
+        <option value="../videos/J_ShortDance15_Nineties_training.mp4">J_ShortDance15_Nineties_training.mp4</option>
+        <option value="../videos/boxing.mp4">boxing.mp4</option>
+        <option value="../videos/dance.mp4">dance.mp4</option>
+      </select>
       <button id="camBtn" type="button">打开彩色摄像头</button>
-      <button id="goBtn" class="ghost" type="button" disabled>开始对标</button>
-      <select id="camSelect" style="display:none"></select>
-      <div class="card">
-        <div class="feedback wait" id="talk">选视频 → 开摄像头 → 开始对标</div>
-      </div>
-      <div class="card">
-        <div class="metric">你右手 / 机器人画面左 <b id="rPunch">-- / --</b></div>
-        <div class="metric">你左手 / 机器人画面右 <b id="lPunch">-- / --</b></div>
-        <div class="metric">你右腿 / 机器人画面左腿 <b id="rKick">-- / --</b></div>
-        <div class="metric">你左腿 / 机器人画面右腿 <b id="lKick">-- / --</b></div>
-      </div>
-    </aside>
-  </div>
+        <button id="goBtn" class="ghost" type="button" disabled>
+          开始对标
+        </button>
+        <button id="stopBtn" type="button" disabled style="background: #ff5d6c;">
+          停止对标
+        </button>
+        <a class="file" href="../error_detection/frontend/index.html"
+          >Error Detection Visualizer</a
+        >
+        <a class="file" href="../error_detection/frontend/how-it-works.html"
+          >算法说明</a
+        >
+        <a class="file" href="../README.md">项目说明</a>
+        <a class="file" href="../QUICKSTART.md">快速开始</a>
+        <select id="camSelect" style="display: none"></select>
+        <div class="card">
+          <div class="feedback wait" id="talk">
+            选视频 → 开摄像头 → 开始对标
+          </div>
+        </div>
+        <div class="card">
+          <div class="metric">
+            你右手 / 机器人画面左 <b id="rPunch">-- / --</b>
+          </div>
+          <div class="metric">
+            你左手 / 机器人画面右 <b id="lPunch">-- / --</b>
+          </div>
+          <div class="metric">
+            你右腿 / 机器人画面左腿 <b id="rKick">-- / --</b>
+          </div>
+          <div class="metric">
+            你左腿 / 机器人画面右腿 <b id="lKick">-- / --</b>
+          </div>
+        </div>
+        <div class="card" id="errorChart" style="min-height: 240px;">
+          <h3 style="margin: 0 0 0.5rem 0; font-size: 14px; color: #8b97b8;">实时误差指标</h3>
+          <div style="color: #8b97b8; font-size: 13px;">点击“开始对标”后显示</div>
+        </div>
+      </aside>
+    </div>
 
-  <script type="module">
-    import {
-      PoseLandmarker,
-      FilesetResolver,
-    } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.17/+esm";
+    <script type="module">
+      import {
+        PoseLandmarker,
+        FilesetResolver,
+      } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.17/+esm";
 
-    const L_SH = 11, R_SH = 12, L_EL = 13, R_EL = 14, L_WR = 15, R_WR = 16;
-    const L_HIP = 23, R_HIP = 24, L_KN = 25, R_KN = 26, L_ANK = 27, R_ANK = 28;
-    const BODY12 = [L_SH, R_SH, L_EL, R_EL, L_WR, R_WR, L_HIP, R_HIP, L_KN, R_KN, L_ANK, R_ANK];
-    const BONES = [
-      [L_SH, R_SH], [L_SH, L_EL], [L_EL, L_WR], [R_SH, R_EL], [R_EL, R_WR],
-      [L_SH, L_HIP], [R_SH, R_HIP], [L_HIP, R_HIP],
-      [L_HIP, L_KN], [L_KN, L_ANK], [R_HIP, R_KN], [R_KN, R_ANK],
-    ];
-    const GOOGLE_MODEL =
-      "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
-
-    const robot = document.getElementById("robot");
-    const cam = document.getElementById("cam");
-    const robotCanvas = document.getElementById("robotOverlay");
-    const camCanvas = document.getElementById("camOverlay");
-    const robotCtx = robotCanvas.getContext("2d");
-    const camCtx = camCanvas.getContext("2d");
-    const statusEl = document.getElementById("status");
-    const talkEl = document.getElementById("talk");
-    const goBtn = document.getElementById("goBtn");
-
-    let robotLm = null;
-    let camLm = null;
-    let lastTalkAt = 0;
-    let running = false;
-    let lastRobotT = -1;
-    let lastCamT = -1;
-    let g1History = [];
-    let pendingErr = null;
-
-    function setTalk(text, kind) {
-      talkEl.textContent = text;
-      talkEl.className = `feedback ${kind}`;
-    }
-
-    function vis(lm, i) {
-      return (lm[i].visibility ?? 1) > 0.55;
-    }
-
-    function torso(lm) {
-      const hx = (lm[L_HIP].x + lm[R_HIP].x) / 2;
-      const hy = (lm[L_HIP].y + lm[R_HIP].y) / 2;
-      const sx = (lm[L_SH].x + lm[R_SH].x) / 2;
-      const sy = (lm[L_SH].y + lm[R_SH].y) / 2;
-      return Math.max(0.08, Math.hypot(hx - sx, hy - sy));
-    }
-
-    function metrics(lm) {
-      if (!lm) return null;
-      const s = torso(lm);
-      const punch = (sh, wr) => (vis(lm, sh) && vis(lm, wr) ? (lm[sh].y - lm[wr].y) / s : null);
-      const kick = (hip, ank) => (vis(lm, hip) && vis(lm, ank) ? (lm[hip].y - lm[ank].y) / s : null);
-      return {
-        rPunch: punch(R_SH, R_WR),
-        lPunch: punch(L_SH, L_WR),
-        rKick: kick(R_HIP, R_ANK),
-        lKick: kick(L_HIP, L_ANK),
-        rReach: vis(lm, R_SH) && vis(lm, R_WR) ? Math.abs(lm[R_WR].x - lm[R_SH].x) / s : null,
-        lReach: vis(lm, L_SH) && vis(lm, L_WR) ? Math.abs(lm[L_WR].x - lm[L_SH].x) / s : null,
-      };
-    }
-
-    function fmt(v) {
-      return v == null || Number.isNaN(v) ? "--" : v.toFixed(2);
-    }
-
-    function mpOnScreenLeft(lm, leftIdx, rightIdx) {
-      if (!lm) return true;
-      const l = lm[leftIdx].x;
-      const r = lm[rightIdx].x;
-      return l > r;
-    }
-
-    function visualChecks(lm) {
-      const armLeftIsMpLeft = mpOnScreenLeft(lm, L_WR, R_WR);
-      const legLeftIsMpLeft = mpOnScreenLeft(lm, L_ANK, R_ANK);
-      const arm = armLeftIsMpLeft
-        ? { screenL: "lPunch", screenR: "rPunch", reachL: "lReach", reachR: "rReach" }
-        : { screenL: "rPunch", screenR: "lPunch", reachL: "rReach", reachR: "lReach" };
-      const leg = legLeftIsMpLeft
-        ? { screenL: "lKick", screenR: "rKick" }
-        : { screenL: "rKick", screenR: "lKick" };
-      return [
-        { g1: arm.screenL, you: "rPunch", text: "右手再高一点", min: 0.16 },
-        { g1: arm.screenR, you: "lPunch", text: "左手再高一点", min: 0.16 },
-        { g1: arm.reachL, you: "rReach", text: "右手再伸出去", min: 0.20 },
-        { g1: arm.reachR, you: "lReach", text: "左手再伸出去", min: 0.20 },
-        { g1: leg.screenL, you: "rKick", text: "右腿再高一点", min: 0.12 },
-        { g1: leg.screenR, you: "lKick", text: "左腿再高一点", min: 0.12 },
+      const L_SH = 11,
+        R_SH = 12,
+        L_EL = 13,
+        R_EL = 14,
+        L_WR = 15,
+        R_WR = 16;
+      const L_HIP = 23,
+        R_HIP = 24,
+        L_KN = 25,
+        R_KN = 26,
+        L_ANK = 27,
+        R_ANK = 28;
+      const BODY12 = [
+        L_SH,
+        R_SH,
+        L_EL,
+        R_EL,
+        L_WR,
+        R_WR,
+        L_HIP,
+        R_HIP,
+        L_KN,
+        R_KN,
+        L_ANK,
+        R_ANK,
       ];
-    }
+      const BONES = [
+        [L_SH, R_SH],
+        [L_SH, L_EL],
+        [L_EL, L_WR],
+        [R_SH, R_EL],
+        [R_EL, R_WR],
+        [L_SH, L_HIP],
+        [R_SH, R_HIP],
+        [L_HIP, R_HIP],
+        [L_HIP, L_KN],
+        [L_KN, L_ANK],
+        [R_HIP, R_KN],
+        [R_KN, R_ANK],
+      ];
+      const GOOGLE_MODEL =
+        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
 
-    function rememberG1(g1, t) {
-      if (!g1) return;
-      g1History.push({ t, ...g1 });
-      g1History = g1History.filter((h) => h.t >= t - 2000);
-    }
+      const robot = document.getElementById("robot");
+      const cam = document.getElementById("cam");
+      const robotCanvas = document.getElementById("robotOverlay");
+      const camCanvas = document.getElementById("camOverlay");
+      const robotCtx = robotCanvas.getContext("2d");
+      const camCtx = camCanvas.getContext("2d");
+      const statusEl = document.getElementById("status");
+      const talkEl = document.getElementById("talk");
+      const goBtn = document.getElementById("goBtn");
 
-    function isMoving(key, value, t) {
-      if (value == null) return false;
-      const recent = g1History.filter((h) => h.t >= t - 2000 && h[key] != null).map((h) => h[key]);
-      if (recent.length < 4) return value > 0.12;
-      const sorted = [...recent].sort((a, b) => a - b);
-      const rest = sorted[Math.floor(sorted.length * 0.25)];
-      return value >= rest + 0.06;
-    }
+      let robotLm = null;
+      let camLm = null;
+      let lastTalkAt = 0;
+      let running = false;
+      let lastRobotT = -1;
+      let lastCamT = -1;
+      let g1History = [];
+      let pendingErr = null;
 
-    function speak(text, kind, now) {
-      if (now - lastTalkAt < 1400 && kind === "bad") return;
-      lastTalkAt = now;
-      pendingErr = null;
-      setTalk(text, kind);
-    }
-
-    function judge(you, g1) {
-      const now = performance.now();
-      rememberG1(g1, now);
-      if (!you || !g1) {
-        setTalk("两边骨架都要看见才能对标", "wait");
-        return;
+      function setTalk(text, kind) {
+        talkEl.textContent = text;
+        talkEl.className = `feedback ${kind}`;
       }
-      const live = [];
-      for (const spec of visualChecks(robotLm)) {
-        const gv = g1[spec.g1];
-        const yv = you[spec.you];
-        if (gv == null || yv == null) continue;
-        if (!isMoving(spec.g1, gv, now)) continue;
-        live.push({ g1v: gv, gap: gv - yv, text: spec.text, min: spec.min });
+
+      function vis(lm, i) {
+        return (lm[i].visibility ?? 1) > 0.55;
       }
-      if (!live.length) {
+
+      function torso(lm) {
+        const hx = (lm[L_HIP].x + lm[R_HIP].x) / 2;
+        const hy = (lm[L_HIP].y + lm[R_HIP].y) / 2;
+        const sx = (lm[L_SH].x + lm[R_SH].x) / 2;
+        const sy = (lm[L_SH].y + lm[R_SH].y) / 2;
+        return Math.max(0.08, Math.hypot(hx - sx, hy - sy));
+      }
+
+      function metrics(lm) {
+        if (!lm) return null;
+        const s = torso(lm);
+        const punch = (sh, wr) =>
+          vis(lm, sh) && vis(lm, wr) ? (lm[sh].y - lm[wr].y) / s : null;
+        const kick = (hip, ank) =>
+          vis(lm, hip) && vis(lm, ank) ? (lm[hip].y - lm[ank].y) / s : null;
+        return {
+          rPunch: punch(R_SH, R_WR),
+          lPunch: punch(L_SH, L_WR),
+          rKick: kick(R_HIP, R_ANK),
+          lKick: kick(L_HIP, L_ANK),
+          rReach:
+            vis(lm, R_SH) && vis(lm, R_WR)
+              ? Math.abs(lm[R_WR].x - lm[R_SH].x) / s
+              : null,
+          lReach:
+            vis(lm, L_SH) && vis(lm, L_WR)
+              ? Math.abs(lm[L_WR].x - lm[L_SH].x) / s
+              : null,
+        };
+      }
+
+      function fmt(v) {
+        return v == null || Number.isNaN(v) ? "--" : v.toFixed(2);
+      }
+
+      function mpOnScreenLeft(lm, leftIdx, rightIdx) {
+        if (!lm) return true;
+        const l = lm[leftIdx].x;
+        const r = lm[rightIdx].x;
+        return l > r;
+      }
+
+      const FEATURE_IMPORTANCE = {
+        right_arm_elevation: 1.0,
+        left_arm_elevation: 1.0,
+        right_arm_reach: 0.8,
+        left_arm_reach: 0.8,
+        right_leg_elevation: 0.7,
+        left_leg_elevation: 0.7,
+      };
+
+      function visualChecks(lm) {
+        const armLeftIsMpLeft = mpOnScreenLeft(lm, L_WR, R_WR);
+        const legLeftIsMpLeft = mpOnScreenLeft(lm, L_ANK, R_ANK);
+        const arm = armLeftIsMpLeft
+          ? {
+              screenL: "lPunch",
+              screenR: "rPunch",
+              reachL: "lReach",
+              reachR: "rReach",
+            }
+          : {
+              screenL: "rPunch",
+              screenR: "lPunch",
+              reachL: "rReach",
+              reachR: "lReach",
+            };
+        const leg = legLeftIsMpLeft
+          ? { screenL: "lKick", screenR: "rKick" }
+          : { screenL: "rKick", screenR: "lKick" };
+        const map = [
+          { g1: arm.screenL, you: "rPunch", text: "右手再高一点", feature: "right_arm_elevation", min: 0.16, threshold: 0.5 },
+          { g1: arm.screenR, you: "lPunch", text: "左手再高一点", feature: "left_arm_elevation", min: 0.16, threshold: 0.5 },
+          { g1: arm.reachL, you: "rReach", text: "右手再伸出去", feature: "right_arm_reach", min: 0.20, threshold: 0.5 },
+          { g1: arm.reachR, you: "lReach", text: "左手再伸出去", feature: "left_arm_reach", min: 0.20, threshold: 0.5 },
+          { g1: leg.screenL, you: "rKick", text: "右腿再高一点", feature: "right_leg_elevation", min: 0.12, threshold: 0.5 },
+          { g1: leg.screenR, you: "lKick", text: "左腿再高一点", feature: "left_leg_elevation", min: 0.12, threshold: 0.5 },
+        ];
+        return map.map((s) => ({
+          ...s,
+          importance: FEATURE_IMPORTANCE[s.feature],
+        }));
+      }
+
+      function rememberG1(g1, t) {
+        if (!g1) return;
+        g1History.push({ t, ...g1 });
+        g1History = g1History.filter((h) => h.t >= t - 2000);
+      }
+
+      function isMoving(key, value, t) {
+        if (value == null) return false;
+        const recent = g1History
+          .filter((h) => h.t >= t - 2000 && h[key] != null)
+          .map((h) => h[key]);
+        if (recent.length < 4) return value > 0.12;
+        const sorted = [...recent].sort((a, b) => a - b);
+        const rest = sorted[Math.floor(sorted.length * 0.25)];
+        return value >= rest + 0.06;
+      }
+
+      function statsFor(key, t) {
+        const recent = g1History
+          .filter((h) => h.t >= t - 2000 && h[key] != null)
+          .map((h) => h[key]);
+        if (!recent.length) return { mean: 0, std: 0 };
+        const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
+        const variance =
+          recent.reduce((a, b) => a + (b - mean) * (b - mean), 0) /
+          recent.length;
+        return { mean, std: Math.sqrt(variance) };
+      }
+
+      function speak(text, kind, now) {
+        if (now - lastTalkAt < 1400 && kind === "bad") return;
+        lastTalkAt = now;
         pendingErr = null;
-        return;
+        setTalk(text, kind);
       }
-      live.sort((a, b) => b.g1v - a.g1v);
-      const top = live[0];
-      if (top.gap > top.min) {
-        if (!pendingErr || pendingErr.text !== top.text) {
-          pendingErr = { text: top.text, since: now };
+
+      function updateErrorChart(items) {
+        const labels = items.map((i) => i.text);
+        const gaps = items.map((i) => i.gap);
+        const colors = items.map((i) =>
+          i.gap > i.min ? "#ff5d6c" : "#3ee08f"
+        );
+        const el = document.getElementById("errorChart");
+        if (!items.length) {
+          el.innerHTML = `<h3 style="margin:0 0 0.5rem 0;font-size:14px;color:#8b97b8;">实时误差指标</h3><div style="color:#8b97b8;font-size:13px;">等待动作对齐…</div>`;
           return;
         }
-        if (now - pendingErr.since < 160) return;
-        speak(top.text, "bad", now);
-        return;
+        Plotly.react(
+          "errorChart",
+          [
+            {
+              x: labels,
+              y: gaps,
+              type: "bar",
+              text: gaps.map((g) => g.toFixed(2)),
+              textposition: "outside",
+              marker: { color: colors },
+            },
+          ],
+          {
+            paper_bgcolor: "#141b2e",
+            plot_bgcolor: "#141b2e",
+            font: { color: "#e8eefc", size: 11 },
+            margin: { t: 30, b: 60, l: 40, r: 20 },
+            xaxis: { tickangle: -25, color: "#8b97b8" },
+            yaxis: { title: "误差", color: "#8b97b8", gridcolor: "#2a3558" },
+            showlegend: false,
+          },
+          { responsive: true, displayModeBar: false }
+        );
       }
-      pendingErr = null;
-      speak("这下跟上 G1 了", "ok", now);
-    }
 
-    function fitCanvas(video, canvas) {
-      const w = video.videoWidth;
-      const h = video.videoHeight;
-      if (w && (canvas.width !== w || canvas.height !== h)) {
-        canvas.width = w;
-        canvas.height = h;
-      }
-      return w && h;
-    }
-
-    function xy(lm, i, canvas) {
-      return [lm[i].x * canvas.width, lm[i].y * canvas.height];
-    }
-
-    function drawPose(ctx, canvas, lm, color) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (!lm) return;
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = color;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      for (const [a, b] of BONES) {
-        if (!vis(lm, a) || !vis(lm, b)) continue;
-        const [x1, y1] = xy(lm, a, canvas);
-        const [x2, y2] = xy(lm, b, canvas);
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-      }
-      for (const i of BODY12) {
-        if (!vis(lm, i)) continue;
-        const [x, y] = xy(lm, i, canvas);
-        ctx.beginPath();
-        ctx.arc(x, y, 6, 0, Math.PI * 2);
-        ctx.fillStyle = "#7cdbff";
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = color;
-        ctx.stroke();
-      }
-    }
-
-    async function createLandmarker(vision) {
-      try {
-        return await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: GOOGLE_MODEL, delegate: "CPU" },
-          runningMode: "VIDEO",
-          numPoses: 1,
-        });
-      } catch {
-        return PoseLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: GOOGLE_MODEL, delegate: "GPU" },
-          runningMode: "VIDEO",
-          numPoses: 1,
-        });
-      }
-    }
-
-    function isIrCamera(label) {
-      return /ir\b|infrared|hello|tof|depth|红外/i.test(label || "");
-    }
-
-    async function pickColorDeviceId() {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const cams = devices.filter((d) => d.kind === "videoinput");
-      const sel = document.getElementById("camSelect");
-      sel.innerHTML = "";
-      cams.forEach((c, i) => {
-        const opt = document.createElement("option");
-        opt.value = c.deviceId;
-        opt.textContent = c.label || `摄像头 ${i}`;
-        sel.appendChild(opt);
-      });
-      sel.style.display = cams.length ? "block" : "none";
-      const color = cams.find((c) => !isIrCamera(c.label)) || cams[cams.length - 1];
-      if (color) sel.value = color.deviceId;
-      return color ? color.deviceId : undefined;
-    }
-
-    async function openStream(deviceId) {
-      const constraints = deviceId
-        ? { video: { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }
-        : { video: true, audio: false };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      if (cam.srcObject) cam.srcObject.getTracks().forEach((t) => t.stop());
-      cam.srcObject = stream;
-      await cam.play();
-    }
-
-    document.getElementById("file").onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      robot.src = URL.createObjectURL(file);
-      robot.load();
-      statusEl.textContent = "已选视频：" + file.name;
-      refreshGo();
-    };
-
-    document.getElementById("camBtn").onclick = async () => {
-      try {
-        await openStream();
-        const id = await pickColorDeviceId();
-        if (id) await openStream(id);
-        statusEl.textContent = "彩色摄像头已开。模型走 Google。";
-        refreshGo();
-        if (!window.__visionReady) await loadModel();
-      } catch (err) {
-        statusEl.textContent = "打不开摄像头：" + err.message;
-        setTalk("请用 Chrome，并选 FHD 摄像头，不要选 IR", "bad");
-      }
-    };
-
-    document.getElementById("camSelect").onchange = async (e) => {
-      await openStream(e.target.value);
-    };
-
-    function refreshGo() {
-      goBtn.disabled = !(robot.src && cam.srcObject && window.__robotLmkr && window.__camLmkr);
-    }
-
-    async function loadModel() {
-      statusEl.textContent = "正在从 Google 加载姿态模型…";
-      window.__vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.17/wasm"
-      );
-      window.__robotLmkr = await createLandmarker(window.__vision);
-      window.__camLmkr = await createLandmarker(window.__vision);
-      window.__visionReady = true;
-      statusEl.textContent = "模型已从 storage.googleapis.com 加载。可以开始对标。";
-      refreshGo();
-    }
-
-    document.getElementById("goBtn").onclick = async () => {
-      running = true;
-      lastRobotT = -1;
-      g1History = [];
-      pendingErr = null;
-      robot.currentTime = 0;
-      await robot.play();
-      setTalk("跟着 G1 做，系统在比同一时刻", "wait");
-      statusEl.textContent = "对标中。空格暂停/继续。";
-    };
-
-    window.addEventListener("keydown", (e) => {
-      if (e.code !== "Space") return;
-      e.preventDefault();
-      if (robot.paused) robot.play();
-      else robot.pause();
-    });
-
-    function detectPose(key, video) {
-      const lmkr = window[key];
-      if (!lmkr) return null;
-      try {
-        const res = lmkr.detectForVideo(video, performance.now());
-        return res.landmarks && res.landmarks[0] ? res.landmarks[0] : null;
-      } catch (err) {
-        if (window.__vision && !window.__rebuilding) {
-          window.__rebuilding = true;
-          createLandmarker(window.__vision).then((next) => {
-            window[key] = next;
-            window.__rebuilding = false;
-          }).catch(() => {
-            window.__rebuilding = false;
+      function judge(you, g1) {
+        const now = performance.now();
+        rememberG1(g1, now);
+        if (!you || !g1) {
+          setTalk("两边骨架都要看见才能对标", "wait");
+          return;
+        }
+        const live = [];
+        for (const spec of visualChecks(robotLm)) {
+          const gv = g1[spec.g1];
+          const yv = you[spec.you];
+          if (gv == null || yv == null) continue;
+          if (!isMoving(spec.g1, gv, now)) continue;
+          const gap = gv - yv;
+          const maxAbs = Math.abs(gap);
+          const { std } = statsFor(spec.g1, now);
+          const threshold = spec.threshold;
+          const significance = Math.min(maxAbs / threshold, 1.0);
+          const consistency = 1.0 - Math.min(std / (threshold / 2.0), 1.0);
+          const confidence = significance * 0.6 + consistency * 0.4;
+          const score = maxAbs * spec.importance * confidence;
+          live.push({
+            feature: spec.feature,
+            g1v: gv,
+            gap,
+            maxAbs,
+            std,
+            confidence,
+            score,
+            text: spec.text,
+            min: spec.min,
+            importance: spec.importance,
           });
         }
-        return null;
-      }
-    }
-
-    function loop() {
-      try {
-        if (window.__robotLmkr && robot.readyState >= 2 && fitCanvas(robot, robotCanvas)) {
-          if (robot.currentTime !== lastRobotT) {
-            lastRobotT = robot.currentTime;
-            robotLm = detectPose("__robotLmkr", robot);
-            drawPose(robotCtx, robotCanvas, robotLm, "#ffc857");
-          }
+        if (!live.length) {
+          pendingErr = null;
+          updateErrorChart([]);
+          return;
         }
-        if (window.__camLmkr && cam.readyState >= 2 && fitCanvas(cam, camCanvas)) {
-          const t = performance.now();
-          if (t !== lastCamT) {
-            lastCamT = t;
-            camLm = detectPose("__camLmkr", cam);
-            drawPose(camCtx, camCanvas, camLm, "#3ee08f");
+        live.sort((a, b) => b.score - a.score);
+        updateErrorChart(live);
+        const top = live[0];
+        const primaryMessage = `${top.text}（${top.feature} 差距 ${top.maxAbs.toFixed(2)}）`;
+        if (top.gap > top.min) {
+          if (!pendingErr || pendingErr.text !== primaryMessage) {
+            pendingErr = { text: primaryMessage, since: now };
+            return;
           }
+          if (now - pendingErr.since < 160) return;
+          speak(primaryMessage, "bad", now);
+          return;
         }
-        const you = metrics(camLm);
-        const g1 = metrics(robotLm);
-        const armLeft = mpOnScreenLeft(robotLm, L_WR, R_WR);
-        const legLeft = mpOnScreenLeft(robotLm, L_ANK, R_ANK);
-        document.getElementById("rPunch").textContent = `${fmt(you?.rPunch)} / ${fmt(armLeft ? g1?.lPunch : g1?.rPunch)}`;
-        document.getElementById("lPunch").textContent = `${fmt(you?.lPunch)} / ${fmt(armLeft ? g1?.rPunch : g1?.lPunch)}`;
-        document.getElementById("rKick").textContent = `${fmt(you?.rKick)} / ${fmt(legLeft ? g1?.lKick : g1?.rKick)}`;
-        document.getElementById("lKick").textContent = `${fmt(you?.lKick)} / ${fmt(legLeft ? g1?.rKick : g1?.lKick)}`;
-        if (running) judge(you, g1);
-      } catch (err) {
-        statusEl.textContent = "识别循环已恢复：" + err.message;
+        pendingErr = null;
+        speak("跟上 G1 了", "ok", now);
       }
-      requestAnimationFrame(loop);
-    }
 
-    loop();
-  </script>
-</body>
+      function fitCanvas(video, canvas) {
+        const w = video.videoWidth;
+        const h = video.videoHeight;
+        if (w && (canvas.width !== w || canvas.height !== h)) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+        return w && h;
+      }
+
+      function xy(lm, i, canvas) {
+        return [lm[i].x * canvas.width, lm[i].y * canvas.height];
+      }
+
+      function drawPose(ctx, canvas, lm, color) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!lm) return;
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = color;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        for (const [a, b] of BONES) {
+          if (!vis(lm, a) || !vis(lm, b)) continue;
+          const [x1, y1] = xy(lm, a, canvas);
+          const [x2, y2] = xy(lm, b, canvas);
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+        for (const i of BODY12) {
+          if (!vis(lm, i)) continue;
+          const [x, y] = xy(lm, i, canvas);
+          ctx.beginPath();
+          ctx.arc(x, y, 6, 0, Math.PI * 2);
+          ctx.fillStyle = "#7cdbff";
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = color;
+          ctx.stroke();
+        }
+      }
+
+      async function createLandmarker(vision) {
+        try {
+          return await PoseLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: GOOGLE_MODEL, delegate: "CPU" },
+            runningMode: "VIDEO",
+            numPoses: 1,
+          });
+        } catch {
+          return PoseLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: GOOGLE_MODEL, delegate: "GPU" },
+            runningMode: "VIDEO",
+            numPoses: 1,
+          });
+        }
+      }
+
+      function isIrCamera(label) {
+        return /ir\b|infrared|hello|tof|depth|红外/i.test(label || "");
+      }
+
+      async function pickColorDeviceId() {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cams = devices.filter((d) => d.kind === "videoinput");
+        const sel = document.getElementById("camSelect");
+        sel.innerHTML = "";
+        cams.forEach((c, i) => {
+          const opt = document.createElement("option");
+          opt.value = c.deviceId;
+          opt.textContent = c.label || `摄像头 ${i}`;
+          sel.appendChild(opt);
+        });
+        sel.style.display = cams.length ? "block" : "none";
+        const color =
+          cams.find((c) => !isIrCamera(c.label)) || cams[cams.length - 1];
+        if (color) sel.value = color.deviceId;
+        return color ? color.deviceId : undefined;
+      }
+
+      async function openStream(deviceId) {
+        const constraints = deviceId
+          ? {
+              video: {
+                deviceId: { exact: deviceId },
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
+              audio: false,
+            }
+          : { video: true, audio: false };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (cam.srcObject) cam.srcObject.getTracks().forEach((t) => t.stop());
+        cam.srcObject = stream;
+        await cam.play();
+      }
+
+      document.getElementById("videoSelect").onchange = (e) => {
+        const path = e.target.value;
+        if (!path) return;
+        robot.src = path;
+        robot.load();
+        statusEl.textContent = "已选视频：" + path.split("/").pop();
+        refreshGo();
+      };
+
+      document.getElementById("camBtn").onclick = async () => {
+        try {
+          await openStream();
+          const id = await pickColorDeviceId();
+          if (id) await openStream(id);
+          statusEl.textContent = "彩色摄像头已开。模型走 Google。";
+          refreshGo();
+          if (!window.__visionReady) await loadModel();
+        } catch (err) {
+          statusEl.textContent = "打不开摄像头：" + err.message;
+          setTalk("请用 Chrome，并选 FHD 摄像头，不要选 IR", "bad");
+        }
+      };
+
+      document.getElementById("camSelect").onchange = async (e) => {
+        await openStream(e.target.value);
+      };
+
+      function refreshGo() {
+        goBtn.disabled = !(
+          robot.src &&
+          cam.srcObject &&
+          window.__robotLmkr &&
+          window.__camLmkr
+        );
+      }
+
+      async function loadModel() {
+        statusEl.textContent = "正在从 Google 加载姿态模型…";
+        window.__vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.17/wasm",
+        );
+        window.__robotLmkr = await createLandmarker(window.__vision);
+        window.__camLmkr = await createLandmarker(window.__vision);
+        window.__visionReady = true;
+        statusEl.textContent =
+          "模型已从 storage.googleapis.com 加载。可以开始对标。";
+        refreshGo();
+      }
+
+      document.getElementById("goBtn").onclick = async () => {
+        running = true;
+        lastRobotT = -1;
+        g1History = [];
+        pendingErr = null;
+        robot.currentTime = 0;
+        await robot.play();
+        setTalk("跟着 G1 做，系统在比同一时刻", "wait");
+        statusEl.textContent = "对标中。点击停止可随时结束。";
+        document.getElementById("stopBtn").disabled = false;
+      };
+
+      document.getElementById("stopBtn").onclick = () => {
+        running = false;
+        robot.pause();
+        pendingErr = null;
+        document.getElementById("stopBtn").disabled = true;
+        setTalk("已停止", "wait");
+        statusEl.textContent = "已停止。点击开始对标继续。";
+      };
+
+      window.addEventListener("keydown", (e) => {
+        if (e.code !== "Space") return;
+        e.preventDefault();
+        if (robot.paused) robot.play();
+        else robot.pause();
+      });
+
+      function detectPose(key, video) {
+        const lmkr = window[key];
+        if (!lmkr) return null;
+        try {
+          const res = lmkr.detectForVideo(video, performance.now());
+          return res.landmarks && res.landmarks[0] ? res.landmarks[0] : null;
+        } catch (err) {
+          if (window.__vision && !window.__rebuilding) {
+            window.__rebuilding = true;
+            createLandmarker(window.__vision)
+              .then((next) => {
+                window[key] = next;
+                window.__rebuilding = false;
+              })
+              .catch(() => {
+                window.__rebuilding = false;
+              });
+          }
+          return null;
+        }
+      }
+
+      function loop() {
+        try {
+          if (
+            window.__robotLmkr &&
+            robot.readyState >= 2 &&
+            fitCanvas(robot, robotCanvas)
+          ) {
+            if (robot.currentTime !== lastRobotT) {
+              lastRobotT = robot.currentTime;
+              robotLm = detectPose("__robotLmkr", robot);
+              drawPose(robotCtx, robotCanvas, robotLm, "#ffc857");
+            }
+          }
+          if (
+            window.__camLmkr &&
+            cam.readyState >= 2 &&
+            fitCanvas(cam, camCanvas)
+          ) {
+            const t = performance.now();
+            if (t !== lastCamT) {
+              lastCamT = t;
+              camLm = detectPose("__camLmkr", cam);
+              drawPose(camCtx, camCanvas, camLm, "#3ee08f");
+            }
+          }
+          const you = metrics(camLm);
+          const g1 = metrics(robotLm);
+          const armLeft = mpOnScreenLeft(robotLm, L_WR, R_WR);
+          const legLeft = mpOnScreenLeft(robotLm, L_ANK, R_ANK);
+          document.getElementById("rPunch").textContent =
+            `${fmt(you?.rPunch)} / ${fmt(armLeft ? g1?.lPunch : g1?.rPunch)}`;
+          document.getElementById("lPunch").textContent =
+            `${fmt(you?.lPunch)} / ${fmt(armLeft ? g1?.rPunch : g1?.lPunch)}`;
+          document.getElementById("rKick").textContent =
+            `${fmt(you?.rKick)} / ${fmt(legLeft ? g1?.lKick : g1?.rKick)}`;
+          document.getElementById("lKick").textContent =
+            `${fmt(you?.lKick)} / ${fmt(legLeft ? g1?.rKick : g1?.lKick)}`;
+          if (running) judge(you, g1);
+        } catch (err) {
+          statusEl.textContent = "识别循环已恢复：" + err.message;
+        }
+        requestAnimationFrame(loop);
+      }
+
+      loop();
+    </script>
+  </body>
 </html>

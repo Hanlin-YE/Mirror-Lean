@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error Detection Visualizer</title>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      background: #0f172a;
+      color: #e2e8f0;
+      line-height: 1.5;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+    h1 { color: #38bdf8; margin: 0 0 0.25rem; }
+    .subtitle { color: #94a3b8; margin-bottom: 1.5rem; }
+    .row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    input, select, button {
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.375rem;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+    }
+    button { background: #38bdf8; color: #0f172a; border: none; font-weight: 600; cursor: pointer; }
+    button:hover { background: #7dd3fc; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; }
+    .card {
+      background: #1e293b;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      border: 1px solid #334155;
+    }
+    .card h3 { margin-top: 0; color: #7dd3fc; font-size: 1rem; }
+    .metric { font-size: 2rem; font-weight: 700; color: #38bdf8; }
+    .metric-label { color: #94a3b8; font-size: 0.9rem; }
+    .feature-name { text-transform: capitalize; }
+    .legend {
+      display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.85rem;
+      margin: 0.5rem 0 1rem;
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .chart { width: 100%; height: 360px; }
+    .empty { color: #94a3b8; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Error Detection Visualizer</h1>
+    <p class="subtitle">Compare human motion vs. robot reference and inspect detected errors</p>
+
+    <div class="row">
+      <select id="scenarioSelect">
+        <option value="/error_detection_output/result.json">Latest demo result</option>
+        <option value="/error_detection_output/demos/right_arm_too_low.json">Demo: right_arm_too_low</option>
+        <option value="/error_detection_output/demos/left_arm_forward.json">Demo: left_arm_forward</option>
+        <option value="/error_detection_output/demos/right_elbow_bent.json">Demo: right_elbow_bent</option>
+        <option value="/error_detection_output/demos/torso_twisted.json">Demo: torso_twisted</option>
+        <option value="/error_detection_output/demos/multiple_errors.json">Demo: multiple_errors</option>
+        <option value="custom">Custom JSON path...</option>
+      </select>
+      <input id="customPath" type="text" placeholder="path/to/result.json" style="display:none; min-width: 300px;">
+      <button id="loadBtn">Load result</button>
+      <input type="file" id="fileInput" accept=".json" style="display:none;">
+      <button id="uploadBtn">Upload JSON</button>
+    </div>
+
+    <div class="grid" id="summaryCards">
+      <div class="card"><h3>Primary Error</h3><div class="metric empty">-</div><div class="metric-label">Select a result to inspect</div></div>
+      <div class="card"><h3>Magnitude</h3><div class="metric empty">-</div><div class="metric-label">Max absolute error</div></div>
+      <div class="card"><h3>Confidence</h3><div class="metric empty">-</div><div class="metric-label">Detection confidence</div></div>
+    </div>
+
+    <div class="card" style="margin-top: 1rem;">
+      <h3>Ranked Errors</h3>
+      <div class="legend">
+        <span><span class="dot" style="background:#f87171"></span>Error magnitude</span>
+        <span><span class="dot" style="background:#38bdf8"></span>Weighted score (magnitude × importance × confidence)</span>
+      </div>
+      <div id="rankedChart" class="chart"></div>
+    </div>
+
+    <div class="card" style="margin-top: 1rem;">
+      <h3>Primary Error Over Time</h3>
+      <div id="timelineChart" class="chart"></div>
+    </div>
+
+    <div class="card" style="margin-top: 1rem;">
+      <h3>DTW Alignment Path</h3>
+      <div id="alignmentChart" class="chart"></div>
+    </div>
+  </div>
+
+  <script>
+    const scenarioSelect = document.getElementById('scenarioSelect');
+    const customPath = document.getElementById('customPath');
+    const fileInput = document.getElementById('fileInput');
+
+    scenarioSelect.onchange = () => {
+      customPath.style.display = scenarioSelect.value === 'custom' ? 'inline-block' : 'none';
+    };
+
+    document.getElementById('uploadBtn').onclick = () => fileInput.click();
+    fileInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const text = await file.text();
+      try {
+        render(JSON.parse(text));
+      } catch (err) {
+        alert('Invalid JSON: ' + err.message);
+      }
+    };
+
+    document.getElementById('loadBtn').onclick = async () => {
+      let path = scenarioSelect.value;
+      if (path === 'custom') path = customPath.value.trim();
+      if (!path) return;
+      try {
+        const res = await fetch(path);
+        if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+        render(await res.json());
+      } catch (err) {
+        alert('Failed to load result: ' + err.message);
+      }
+    };
+
+    function render(data) {
+      const primary = data.primary_error;
+      const ranked = data.ranked_errors || [];
+      const alignment = data.alignment || [];
+
+      // Summary cards
+      const cards = document.getElementById('summaryCards');
+      cards.innerHTML = `
+        <div class="card">
+          <h3>Primary Error</h3>
+          <div class="metric feature-name">${primary.feature.replace(/_/g, ' ')}</div>
+          <div class="metric-label">${primary.mean_error.toFixed(1)}° mean error</div>
+        </div>
+        <div class="card">
+          <h3>Magnitude</h3>
+          <div class="metric">${primary.max_abs_error.toFixed(1)}°</div>
+          <div class="metric-label">Max absolute error</div>
+        </div>
+        <div class="card">
+          <h3>Confidence</h3>
+          <div class="metric">${(primary.confidence * 100).toFixed(0)}%</div>
+          <div class="metric-label">Detection confidence</div>
+        </div>
+        <div class="card">
+          <h3>Rhythm Error</h3>
+          <div class="metric">${(data.timing_error_sec || 0).toFixed(3)}s</div>
+          <div class="metric-label">Mean aligned timestamp lag</div>
+        </div>
+      `;
+
+      // Ranked errors bar chart
+      const features = ranked.map(e => e.feature.replace(/_/g, ' '));
+      const magnitudes = ranked.map(e => e.max_abs_error);
+      const weighted = ranked.map(e =>
+        e.max_abs_error * e.feature_importance * e.confidence
+      );
+      Plotly.newPlot('rankedChart', [
+        {
+          x: features, y: magnitudes, type: 'bar', name: 'Magnitude',
+          marker: { color: '#f87171' }
+        },
+        {
+          x: features, y: weighted, type: 'bar', name: 'Weighted score',
+          marker: { color: '#38bdf8' }
+        }
+      ], {
+        barmode: 'group',
+        paper_bgcolor: '#1e293b',
+        plot_bgcolor: '#1e293b',
+        font: { color: '#e2e8f0' },
+        margin: { t: 20 },
+        yaxis: { title: 'degrees / score', gridcolor: '#334155' },
+        xaxis: { tickangle: -25 }
+      }, { responsive: true });
+
+      // Timeline of primary error over aligned frames
+      // We don't have per-frame data in the saved JSON, so reconstruct aligned
+      // timestamps from the alignment array if present.
+      if (alignment.length > 0) {
+        const idx = Array.from({length: alignment.length}, (_, i) => i);
+        const pairs = alignment.map(p => p);
+        Plotly.newPlot('timelineChart', [
+          {
+            x: idx,
+            y: pairs.map(() => primary.max_abs_error),
+            mode: 'lines',
+            name: 'Primary error envelope',
+            line: { color: '#f87171', width: 2, dash: 'dot' },
+            opacity: 0.5
+          }
+        ], {
+          paper_bgcolor: '#1e293b',
+          plot_bgcolor: '#1e293b',
+          font: { color: '#e2e8f0' },
+          margin: { t: 20 },
+          yaxis: { title: 'degrees', gridcolor: '#334155' },
+          xaxis: { title: 'aligned frame index', gridcolor: '#334155' },
+          annotations: [{
+            x: idx[Math.floor(idx.length / 2)],
+            y: primary.max_abs_error,
+            text: `Worst mismatch: ${primary.max_abs_error.toFixed(1)}°`,
+            showarrow: true,
+            arrowhead: 2,
+            font: { color: '#e2e8f0' }
+          }]
+        }, { responsive: true });
+      }
+
+      // DTW alignment path
+      const refIdx = alignment.map(p => p[0]);
+      const humanIdx = alignment.map(p => p[1]);
+      Plotly.newPlot('alignmentChart', [
+        {
+          x: refIdx, y: humanIdx, mode: 'lines',
+          line: { color: '#38bdf8', width: 2 },
+          name: 'Alignment path'
+        }
+      ], {
+        paper_bgcolor: '#1e293b',
+        plot_bgcolor: '#1e293b',
+        font: { color: '#e2e8f0' },
+        margin: { t: 20 },
+        xaxis: { title: 'reference frame', gridcolor: '#334155' },
+        yaxis: { title: 'human frame', gridcolor: '#334155' },
+        shapes: [{
+          type: 'line', x0: 0, y0: 0,
+          x1: Math.max(...refIdx, 1), y1: Math.max(...humanIdx, 1),
+          line: { color: '#94a3b8', width: 1, dash: 'dash' }
+        }]
+      }, { responsive: true });
+    }
+  </script>
+</body>
+</html>

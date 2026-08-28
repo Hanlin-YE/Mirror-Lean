@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mirror · 镜身 — Embodied Motion Coach</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#141b2e',
+              900: '#0b1020',
+              950: '#070b16',
+            },
+            brand: {
+              ok: '#3ee08f',
+              bad: '#ff5d6c',
+              warn: '#ffc857',
+              accent: '#38bdf8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', 'Microsoft YaHei', 'PingFang SC', sans-serif; }
+    .glass {
+      background: rgba(20, 27, 46, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(42, 53, 88, 0.6);
+    }
+    .glow {
+      box-shadow: 0 0 40px -10px rgba(56, 189, 248, 0.25);
+    }
+    .card:hover { transform: translateY(-2px); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+  <nav class="glass sticky top-0 z-50 border-b border-slate-800">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-accent to-blue-600 flex items-center justify-center font-bold text-slate-950">M</div>
+        <span class="font-semibold text-lg tracking-tight">Mirror · 镜身</span>
+      </div>
+      <div class="hidden md:flex items-center gap-6 text-sm text-slate-400">
+        <a href="#experience" class="hover:text-white transition">Experience</a>
+        <a href="#pipeline" class="hover:text-white transition">Pipeline</a>
+        <a href="#docs" class="hover:text-white transition">Docs</a>
+      </div>
+      <div class="flex items-center gap-2 text-sm">
+        <span class="px-2 py-1 rounded-md bg-sky-400/10 text-sky-400 font-medium">EN</span>
+        <a href="index-zh.html" class="px-2 py-1 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition">中文</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto px-6 py-16 md:py-24">
+    <section class="text-center mb-20">
+      <h1 class="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+        The robot doesn't move for you —<br />
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-brand-ok">it teaches your body.</span>
+      </h1>
+      <p class="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-10">
+        把 Unitree G1 从「代替人类干活」转向「教会人类身体」。<br class="hidden md:block" />
+        实时复刻、高亮差异、渐变演示修正姿态。
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="../demos/g1_23dof_coach.html" class="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-brand-accent text-slate-950 font-semibold hover:bg-sky-300 transition glow">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Start Real-time Coach
+        </a>
+        <a href="../error_detection/frontend/index.html" class="inline-flex items-center gap-2 px-8 py-4 rounded-xl glass text-white font-medium hover:bg-slate-800 transition">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6"></path><path d="M21 19v-6a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v6"></path><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>
+          Error Report
+        </a>
+      </div>
+    </section>
+
+    <section id="experience" class="mb-24">
+      <h2 class="text-2xl font-semibold mb-8 text-center">Pick your entry point</h2>
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <a href="../demos/g1_23dof_coach.html" class="card block glass rounded-2xl p-6 transition group hover:border-brand-accent">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-ok/20 to-brand-ok/5 flex items-center justify-center mb-4 text-brand-ok border border-brand-ok/20">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2 group-hover:text-brand-ok transition">Real-time Coach</h3>
+          <p class="text-slate-400 text-sm">Open camera, load a G1 reference video, and get live pose matching feedback with MediaPipe 12-point detection.</p>
+        </a>
+
+        <a href="../error_detection/frontend/index.html" class="card block glass rounded-2xl p-6 transition group hover:border-brand-accent">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-accent/20 to-brand-accent/5 flex items-center justify-center mb-4 text-brand-accent border border-brand-accent/20">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2 group-hover:text-brand-accent transition">Error Detection</h3>
+          <p class="text-slate-400 text-sm">Compare human vs. robot motion with DTW, rank errors by severity, and inspect the alignment report.</p>
+        </a>
+
+        <a href="../lean-canvas/index.html" class="card block glass rounded-2xl p-6 transition group hover:border-brand-accent">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-warn/20 to-brand-warn/5 flex items-center justify-center mb-4 text-brand-warn border border-brand-warn/20">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18"></path><path d="M9 21V9"></path></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2 group-hover:text-brand-warn transition">Lean Canvas</h3>
+          <p class="text-slate-400 text-sm">The venture model, problem, UVP, and business logic for the Mirror·镜身 hackathon project.</p>
+        </a>
+
+        <a href="../error_detection/frontend/how-it-works.html" class="card block glass rounded-2xl p-6 transition group hover:border-brand-accent">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400/20 to-purple-400/5 flex items-center justify-center mb-4 text-purple-400 border border-purple-400/20">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-2 group-hover:text-purple-400 transition">How it Works</h3>
+          <p class="text-slate-400 text-sm">The full error detection pipeline: canonical features, DTW alignment, difference engine and ranking.</p>
+        </a>
+      </div>
+    </section>
+
+    <section id="pipeline" class="mb-24">
+      <h2 class="text-2xl font-semibold mb-8 text-center">Human Capability Loop</h2>
+      <div class="glass rounded-2xl p-8 glow">
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-4 text-center text-sm">
+          <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800">人不会</div>
+          <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800">Robot observes</div>
+          <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800">Robot understands</div>
+          <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800">Robot demonstrates</div>
+          <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800">Human learns</div>
+          <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800">人会了</div>
+        </div>
+        <p class="text-center text-slate-400 mt-6 text-sm">阶段1：G1 复刻你的动作 · 阶段2：从 A 渐变至修正姿态 B · 阶段3：闭环再试，重合度上升</p>
+      </div>
+    </section>
+
+    <section id="docs" class="mb-24">
+      <h2 class="text-2xl font-semibold mb-2 text-center">PRD Update Hub</h2>
+      <p class="text-center text-slate-400 mb-8">Latest planning docs from the main branch</p>
+      <div class="grid md:grid-cols-3 gap-6">
+        <a href="../docs/PRD.md" class="card block glass rounded-2xl p-6 transition group hover:border-brand-accent">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-accent/20 to-brand-accent/5 flex items-center justify-center text-brand-accent border border-brand-accent/20">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>
+            </div>
+            <span class="text-xs font-medium px-2 py-1 rounded-full bg-brand-accent/10 text-brand-accent border border-brand-accent/20">PRD</span>
+          </div>
+          <h3 class="text-xl font-semibold mb-2 group-hover:text-brand-accent transition">Product Requirements</h3>
+          <p class="text-slate-400 text-sm">Problem/insight, UVP, user scenarios, P0–P2 features, metrics, business model, roadmap and risks.</p>
+        </a>
+
+        <a href="../docs/TDD.md" class="card block glass rounded-2xl p-6 transition group hover:border-brand-ok">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-ok/20 to-brand-ok/5 flex items-center justify-center text-brand-ok border border-brand-ok/20">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+            </div>
+            <span class="text-xs font-medium px-2 py-1 rounded-full bg-brand-ok/10 text-brand-ok border border-brand-ok/20">TDD</span>
+          </div>
+          <h3 class="text-xl font-semibold mb-2 group-hover:text-brand-ok transition">Technical Design</h3>
+          <p class="text-slate-400 text-sm">Architecture, component stack, Unitree G1 SDK integration, latency budget, safety design and 60s demo storyboard.</p>
+        </a>
+
+        <a href="../docs/dataset-survey.md" class="card block glass rounded-2xl p-6 transition group hover:border-brand-warn">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-warn/20 to-brand-warn/5 flex items-center justify-center text-brand-warn border border-brand-warn/20">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <span class="text-xs font-medium px-2 py-1 rounded-full bg-brand-warn/10 text-brand-warn border border-brand-warn/20">Survey</span>
+          </div>
+          <h3 class="text-xl font-semibold mb-2 group-hover:text-brand-warn transition">Dataset &amp; Component Survey</h3>
+          <p class="text-slate-400 text-sm">Training datasets, retargeting tools, tracking frameworks and licenses — all verified for G1 compatibility.</p>
+        </a>
+      </div>
+      <div class="text-center mt-8">
+        <a href="../README.md" class="inline-flex items-center gap-2 px-6 py-3 rounded-lg glass text-sm hover:bg-slate-800 transition">View README</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-slate-800 mt-16 py-8 text-center text-slate-500 text-sm">
+    Mirror · 镜身 — VentureD Hackathon 2026 · Track 02 Physical AI
+  </footer>
+
+</body>
+</html>
