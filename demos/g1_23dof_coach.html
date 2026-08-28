@@ -324,7 +324,7 @@
         border-color: var(--ok);
         outline: none;
       }
-      #mostAiKey, #voiceSelect, #openaiVoiceSelect, #ttsMode, #speakerMode, #robotSpeakerUrl {
+      #mostAiKey, #voiceSelect, #openaiVoiceSelect, #ttsMode, #speakerMode {
         width: 100%;
         background: var(--panel);
         border: 1px solid var(--line);
@@ -439,14 +439,8 @@
           </select>
           <select id="speakerMode">
             <option value="local">输出到本机扬声器</option>
-            <option value="robot">输出到机器人扬声器</option>
+            <option value="robot">输出到机器人扬声器（192.168.52.241:8123）</option>
           </select>
-          <input
-            id="robotSpeakerUrl"
-            type="text"
-            placeholder="机器人 speaker 地址，如 http://192.168.52.241:8123"
-            style="display:none;"
-          />
           <button id="testTtsBtn" type="button">测试语音</button>
           <div class="status" id="ttsStatus"></div>
           <progress id="ttsProgress" value="0" max="100" style="width:100%;display:none;margin-top:6px;"></progress>
@@ -548,8 +542,8 @@
       const voiceSelect = document.getElementById("voiceSelect");
       const openaiVoiceSelect = document.getElementById("openaiVoiceSelect");
       const speakerModeSelect = document.getElementById("speakerMode");
-      const robotSpeakerUrlInput = document.getElementById("robotSpeakerUrl");
       const voiceEnabledCheck = document.getElementById("voiceEnabled");
+      const DEFAULT_ROBOT_SPEAKER_URL = "http://192.168.52.241:8123";
       const testTtsBtn = document.getElementById("testTtsBtn");
       const ttsModeSelect = document.getElementById("ttsMode");
       const ttsStatusEl = document.getElementById("ttsStatus");
@@ -814,11 +808,7 @@
       }
 
       async function sendRobotAudio(blob) {
-        const url = robotSpeakerUrlInput.value.trim();
-        if (!url) {
-          ttsStatusEl.textContent = "请输入机器人 speaker 地址";
-          return;
-        }
+        const url = DEFAULT_ROBOT_SPEAKER_URL;
         ttsStatusEl.textContent = "正在发送语音到机器人…";
         ttsProgressEl.style.display = "block";
         ttsProgressEl.value = 0;
@@ -856,11 +846,7 @@
       }
 
       async function sendRobotText(text) {
-        const url = robotSpeakerUrlInput.value.trim();
-        if (!url) {
-          ttsStatusEl.textContent = "请输入机器人 speaker 地址";
-          return;
-        }
+        const url = DEFAULT_ROBOT_SPEAKER_URL;
         try {
           const res = await fetch(`${url}/speak-text`, {
             method: "POST",
@@ -1493,7 +1479,6 @@
       if (savedTtsMode) ttsModeSelect.value = savedTtsMode;
       const savedSpeakerMode = localStorage.getItem("speakerMode");
       if (savedSpeakerMode) speakerModeSelect.value = savedSpeakerMode;
-      robotSpeakerUrlInput.value = localStorage.getItem("robotSpeakerUrl") || "";
 
       if (window.speechSynthesis) {
         const loadVoices = () => {
@@ -1516,10 +1501,6 @@
         openaiVoiceSelect.style.display = mode === "openai" ? "block" : "none";
       }
 
-      function updateSpeakerMode() {
-        robotSpeakerUrlInput.style.display = speakerModeSelect.value === "robot" ? "block" : "none";
-      }
-
       ttsModeSelect.addEventListener("change", () => {
         localStorage.setItem("ttsMode", ttsModeSelect.value);
         ttsStatusEl.textContent = "";
@@ -1527,12 +1508,7 @@
       });
       speakerModeSelect.addEventListener("change", () => {
         localStorage.setItem("speakerMode", speakerModeSelect.value);
-        localStorage.setItem("robotSpeakerUrl", robotSpeakerUrlInput.value);
         ttsStatusEl.textContent = "";
-        updateSpeakerMode();
-      });
-      robotSpeakerUrlInput.addEventListener("change", () => {
-        localStorage.setItem("robotSpeakerUrl", robotSpeakerUrlInput.value);
       });
       testTtsBtn.addEventListener("click", () => {
         const mode = ttsModeSelect.value;
@@ -1546,7 +1522,6 @@
       });
 
       updateVoiceSelects();
-      updateSpeakerMode();
 
       document.getElementById("goBtn").onclick = async () => {
         running = true;
