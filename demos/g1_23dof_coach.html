@@ -1575,7 +1575,9 @@
         lastSpokenAt = performance.now();
         robot.onended = () => { if (running) stopBtn.click(); };
         await robot.play();
-        setTalk("跟着 G1 做，系统在比同一时刻", "wait");
+        const intro = "跟着 G1 做，系统在比同一时刻";
+        setTalk(intro, "wait");
+        speak(intro);
         statusEl.textContent = "对标中。点击停止可随时结束。";
         document.getElementById("stopBtn").disabled = false;
       };
