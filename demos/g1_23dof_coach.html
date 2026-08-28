@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdn.plot.ly https://storage.googleapis.com; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://cdn.plot.ly https://storage.googleapis.com https://api.tts.ai; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:;"
+      content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdn.plot.ly https://storage.googleapis.com; worker-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://cdn.plot.ly https://storage.googleapis.com https://api.tts.ai https://api.openai.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:;"
     />
     <title>G1 23DoF 对标教练</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
@@ -324,7 +324,7 @@
         border-color: var(--ok);
         outline: none;
       }
-      #mostAiKey, #voiceSelect, #ttsMode {
+      #mostAiKey, #voiceSelect, #openaiVoiceSelect, #ttsMode {
         width: 100%;
         background: var(--panel);
         border: 1px solid var(--line);
@@ -414,6 +414,7 @@
           </label>
           <select id="ttsMode">
             <option value="browser">浏览器语音（笔记本扬声器，无需 key）</option>
+            <option value="openai">OpenAI TTS（key 来自 .env）</option>
             <option value="mostai">most.ai API（key 来自 .env）</option>
           </select>
           <input
@@ -422,8 +423,19 @@
             value=""
           />
           <select id="voiceSelect">
-            <option value="v2/zh_speaker_0">中文声音 1</option>
-            <option value="v2/zh_speaker_1">中文声音 2</option>
+            <option value="v2/zh_speaker_0">most.ai 中文声音 1</option>
+            <option value="v2/zh_speaker_1">most.ai 中文声音 2</option>
+          </select>
+          <select id="openaiVoiceSelect" style="display:none;">
+            <option value="shimmer">Shimmer（女声）</option>
+            <option value="nova">Nova（女声）</option>
+            <option value="alloy">Alloy（中性）</option>
+            <option value="echo">Echo（男声）</option>
+            <option value="fable">Fable（男声）</option>
+            <option value="onyx">Onyx（男声）</option>
+            <option value="sage">Sage（中性）</option>
+            <option value="coral">Coral（女声）</option>
+            <option value="verse">Verse（男声）</option>
           </select>
           <button id="testTtsBtn" type="button">测试语音</button>
           <div class="status" id="ttsStatus"></div>
@@ -524,6 +536,7 @@
       const skillFillEl = document.getElementById("skillFill");
       const mostAiKeyInput = document.getElementById("mostAiKey");
       const voiceSelect = document.getElementById("voiceSelect");
+      const openaiVoiceSelect = document.getElementById("openaiVoiceSelect");
       const voiceEnabledCheck = document.getElementById("voiceEnabled");
       const testTtsBtn = document.getElementById("testTtsBtn");
       const ttsModeSelect = document.getElementById("ttsMode");
@@ -764,6 +777,8 @@
         const mode = ttsModeSelect.value;
         if (mode === "mostai") {
           await speakMostAi(text);
+        } else if (mode === "openai") {
+          await speakOpenAi(text);
         } else {
           speakBrowser(text);
         }
@@ -814,6 +829,51 @@
         };
         utterance.onstart = () => { ttsStatusEl.textContent = ""; };
         window.speechSynthesis.speak(utterance);
+      }
+
+      async function speakOpenAi(text) {
+        const key = (window.__OPENAI_API_KEY__ || "").trim();
+        if (!key) {
+          ttsStatusEl.textContent = "OpenAI API key 未配置（请检查 .env 与 serve.py）";
+          console.warn("OpenAI key missing");
+          return;
+        }
+        const voice = openaiVoiceSelect.value;
+        try {
+          ttsStatusEl.textContent = "正在请求 OpenAI 语音…";
+          const res = await fetch("https://api.openai.com/v1/audio/speech", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${key}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini-tts",
+              input: text,
+              voice,
+              instructions: "Speak in the energetic, encouraging tone of a fitness coach. Enunciate clearly in Chinese.",
+              response_format: "mp3",
+            }),
+          });
+          if (!res.ok) {
+            const errText = await res.text().catch(() => "");
+            throw new Error(`OpenAI TTS ${res.status} ${errText}`);
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          if (ttsAudio) {
+            ttsAudio.pause();
+            ttsAudio.currentTime = 0;
+          }
+          ttsAudio = new Audio(url);
+          ttsAudio.onplay = () => { ttsStatusEl.textContent = ""; };
+          ttsAudio.onerror = () => { ttsStatusEl.textContent = "OpenAI 语音播放失败"; };
+          ttsAudio.play();
+        } catch (err) {
+          console.error("OpenAI 语音出错：", err);
+          ttsStatusEl.textContent = "OpenAI 请求失败：" + err.message + "，已切换浏览器语音";
+          speakBrowser(text);
+        }
       }
 
       async function speakMostAi(text) {
@@ -1351,18 +1411,29 @@
       voiceEnabledCheck.addEventListener("change", () => {
         localStorage.setItem("voiceEnabled", voiceEnabledCheck.checked ? "1" : "");
       });
+      function updateVoiceSelects() {
+        const mode = ttsModeSelect.value;
+        voiceSelect.style.display = mode === "mostai" ? "block" : "none";
+        openaiVoiceSelect.style.display = mode === "openai" ? "block" : "none";
+      }
+
       ttsModeSelect.addEventListener("change", () => {
         localStorage.setItem("ttsMode", ttsModeSelect.value);
         ttsStatusEl.textContent = "";
+        updateVoiceSelects();
       });
       testTtsBtn.addEventListener("click", () => {
         const mode = ttsModeSelect.value;
         if (mode === "mostai") {
           speakMostAi("跟着 G1 做动作，加油！");
+        } else if (mode === "openai") {
+          speakOpenAi("跟着 G1 做动作，加油！");
         } else {
           speakBrowser("跟着 G1 做动作，加油！");
         }
       });
+
+      updateVoiceSelects();
 
       document.getElementById("goBtn").onclick = async () => {
         running = true;

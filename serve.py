@@ -34,8 +34,14 @@ class Handler(SimpleHTTPRequestHandler):
         if path in ("/", "/demos/g1_23dof_coach.html"):
             html_path = ROOT / "demos" / "g1_23dof_coach.html"
             html = html_path.read_bytes()
-            key = os.environ.get("MOSTAI_API_KEY", "")
-            injection = f'<script>window.__MOSTAI_API_KEY__={key!r};</script>'.encode()
+            mostai_key = os.environ.get("MOSTAI_API_KEY", "")
+            openai_key = os.environ.get("OPENAI_API_KEY", "")
+            injection = (
+                f'<script>'
+                f'window.__MOSTAI_API_KEY__={mostai_key!r};'
+                f'window.__OPENAI_API_KEY__={openai_key!r};'
+                f'</script>'
+            ).encode()
             # Insert right before the closing </head> so it is available to the module script.
             html = html.replace(b"</head>", injection + b"</head>", 1)
             self.send_response(200)

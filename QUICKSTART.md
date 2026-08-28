@@ -10,12 +10,19 @@ python serve.py
 
 > 如果 `8081` 被占用，可设置环境变量 `PORT=8082` 或在 `.env` 里指定 `PORT`。
 
-### 配置 most.ai 语音 key（可选）
+### 配置语音 API key（可选）
 
-如果需要使用 most.ai TTS，把 key 写入仓库根目录的 `.env` 文件：
+`g1_23dof_coach.html` 左侧语音教练支持三种模式：
+
+1. **浏览器语音**（默认，免费，使用系统语音）
+2. **OpenAI TTS**（推荐，更像真人教练，需要 OpenAI key）
+3. **most.ai TTS**（需要 most.ai key 且账户有余额）
+
+把 key 写入仓库根目录的 `.env` 文件：
 
 ```bash
-MOSTAI_API_KEY=your-key-here
+MOSTAI_API_KEY=your-mostai-key
+OPENAI_API_KEY=your-openai-key
 ```
 
 `.env` 已被加入 `.gitignore`，不会提交到 Git。
