@@ -416,6 +416,7 @@
             <option value="browser">浏览器语音（笔记本扬声器，无需 key）</option>
             <option value="openai">OpenAI TTS（key 来自 .env）</option>
             <option value="mostai">most.ai API（key 来自 .env）</option>
+            <option value="unitree">Unitree 机器人语音（机器人自带扬声器，无需 key）</option>
           </select>
           <input
             id="mostAiKey"
@@ -787,6 +788,8 @@
           await speakMostAi(text);
         } else if (mode === "openai") {
           await speakOpenAi(text);
+        } else if (mode === "unitree") {
+          await speakUnitree(text);
         } else {
           speakBrowser(text);
         }
@@ -1510,9 +1513,20 @@
         openaiVoiceSelect.style.display = mode === "openai" ? "block" : "none";
       }
 
+      async function speakUnitree(text) {
+        if (speakerModeSelect.value !== "robot") {
+          ttsStatusEl.textContent = "提示：Unitree 语音模式需要选择“机器人扬声器”";
+          return;
+        }
+        ttsStatusEl.textContent = "正在通过 Unitree 机器人语音播报…";
+        await sendRobotText(text);
+      }
+
       function updateTtsCompatibilityWarning() {
         if (speakerModeSelect.value === "robot" && ttsModeSelect.value === "browser") {
-          ttsStatusEl.textContent = "提示：机器人扬声器需要 OpenAI 或 most.ai TTS。浏览器语音无法发送到机器人。";
+          ttsStatusEl.textContent = "提示：机器人扬声器需要 OpenAI、most.ai 或 Unitree TTS。浏览器语音无法发送到机器人。";
+        } else if (speakerModeSelect.value === "laptop" && ttsModeSelect.value === "unitree") {
+          ttsStatusEl.textContent = "提示：Unitree 语音模式需要将输出切换到“机器人扬声器”。";
         } else if (ttsStatusEl.textContent && ttsStatusEl.textContent.startsWith("提示：")) {
           ttsStatusEl.textContent = "";
         }
@@ -1534,6 +1548,8 @@
           speakMostAi("跟着 G1 做动作，加油！");
         } else if (mode === "openai") {
           speakOpenAi("跟着 G1 做动作，加油！");
+        } else if (mode === "unitree") {
+          speakUnitree("跟着 G1 做动作，加油！");
         } else {
           speakBrowser("跟着 G1 做动作，加油！");
         }

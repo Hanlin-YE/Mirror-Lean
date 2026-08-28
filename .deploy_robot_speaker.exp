@@ -1,5 +1,5 @@
 #!/usr/bin/expect -f
-# Password-based deployment for the robot speaker server + Unitree stock TTS helper.
+# Password-based deployment for the robot speaker server (now using unitree_sdk2py).
 # Opens one interactive SSH session and uses echo markers for reliable completion.
 # Usage: expect .deploy_robot_speaker.exp
 set timeout 180
@@ -46,11 +46,10 @@ expect {
     }
 }
 
-run_cmd "1/5 create dir" "mkdir -p ${remote_dir}"
+run_cmd "1/4 create dir" "mkdir -p ${remote_dir}"
 
-puts "\n\[2/5\] Copying files to robot..."
-# scp in a separate spawn.
-spawn scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null robot-speaker-server.py robot-tts.cc CMakeLists.txt ${user}@${host}:${remote_dir}/
+puts "\n\[2/4\] Copy Python server + optional standalone test tool to robot."
+spawn scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null robot-speaker-server.py say.py ${user}@${host}:${remote_dir}/
 expect {
     -re "password:\\s*" { send -- "$pass\r"; exp_continue }
     -re "noetic" { send -- "1\r"; exp_continue }
@@ -63,11 +62,9 @@ expect {
     }
 }
 
-run_cmd "3/5 verify copy" "ls ${remote_dir}/robot-speaker-server.py"
+run_cmd "3/4 verify copy" "ls ${remote_dir}/robot-speaker-server.py"
 
-run_cmd "4/5 build TTS helper" "cd ${remote_dir} && rm -rf build && mkdir build && cd build && cmake .. && make -j\\$(nproc)"
-
-run_cmd "5/5 restart server" "pkill -f robot-speaker-server.py || true; cd ${remote_dir} && nohup python3 robot-speaker-server.py > /tmp/robot-speaker.log 2>&1 &"
+run_cmd "4/4 restart server" "pkill -f robot-speaker-server.py || true; cd ${remote_dir} && nohup python3 robot-speaker-server.py > /tmp/robot-speaker.log 2>&1 &"
 
 send -- "exit\r"
 expect eof

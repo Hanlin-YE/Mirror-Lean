@@ -135,18 +135,33 @@ def detect_speaker_id(text: str) -> int:
 def speak_text_unitree(text: str) -> bool:
     """Speak text using the Unitree G1 stock audio service (AudioClient::TtsMaker).
 
-    This relies on the companion C++ binary ``robot-tts`` built from
-    ``robot-tts.cc`` against the on-robot unitree_sdk2.
+    Uses the unitree_sdk2py Python bindings directly on the robot.
     """
-    bin_path = os.environ.get("ROBOT_TTS_BIN", os.path.join(os.path.dirname(__file__), "build", "robot-tts"))
-    iface = os.environ.get("ROBOT_TTS_IFACE", "eth0")
-    if not os.path.isfile(bin_path):
-        log(f"robot-tts binary not found at {bin_path}")
+    try:
+        from unitree_sdk2py.core.channel import ChannelFactoryInitialize
+        from unitree_sdk2py.g1.audio.g1_audio_client import AudioClient
+    except ImportError as e:
+        log(f"unitree_sdk2py not available: {e}")
         return False
 
+    iface = os.environ.get("ROBOT_TTS_IFACE", "eth0")
     speaker_id = detect_speaker_id(text)
-    log(f"speaking with Unitree AudioClient TtsMaker (speaker_id={speaker_id})")
-    return run_ok([bin_path, iface, text, str(speaker_id)], timeout=15)
+    log(f"speaking with Unitree AudioClient TtsMaker (speaker_id={speaker_id}, iface={iface})")
+
+    try:
+        ChannelFactoryInitialize(0, iface)
+        client = AudioClient()
+        client.SetTimeout(10.0)
+        client.Init()
+        code = client.TtsMaker(text, speaker_id)
+        if code == 0:
+            log(f"Unitree TtsMaker ok: {text[:60]!r}")
+            return True
+        log(f"Unitree TtsMaker returned error code {code}")
+        return False
+    except Exception as e:
+        log(f"Unitree TtsMaker exception: {e}")
+        return False
 
 
 def speak_text_local(text: str) -> bool:
