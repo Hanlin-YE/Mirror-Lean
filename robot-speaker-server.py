@@ -24,7 +24,7 @@ import json
 import shutil
 import tempfile
 import subprocess
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
 PORT = int(os.environ.get("PORT", "8123"))
@@ -36,14 +36,17 @@ def log(msg: str):
     sys.stderr.flush()
 
 
-def run_ok(cmd: list) -> bool:
+def run_ok(cmd: list, timeout: int = 30) -> bool:
     try:
-        result = subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        result = subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=timeout)
         if result.returncode != 0:
             err = result.stderr.decode("utf-8", "ignore").strip()[:200]
             log(f"cmd failed ({' '.join(cmd)}): {err}")
             return False
         return True
+    except subprocess.TimeoutExpired:
+        log(f"cmd timed out ({' '.join(cmd)})")
+        return False
     except Exception as e:
         log(f"cmd exception ({' '.join(cmd)}): {e}")
         return False
@@ -184,11 +187,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, b"not found")
 
     def log_message(self, format, *args):
-        print(format % args)
+        log(format % args)
 
 
 if __name__ == "__main__":
-    server = HTTPServer((HOST, PORT), Handler)
+    server = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"Robot speaker server listening on http://{HOST}:{PORT}")
     print("Endpoints: POST /speak (audio bytes), POST /speak-text (JSON)")
     try:
