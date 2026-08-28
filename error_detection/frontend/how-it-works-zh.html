@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>误差检测算法说明 — Mirror · 镜身</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', 'Microsoft YaHei', 'PingFang SC', sans-serif; }
+    .glass { background: rgba(20, 27, 46, 0.85); border: 1px solid rgba(42, 53, 88, 0.6); }
+    .glow { box-shadow: 0 0 40px -10px rgba(56, 189, 248, 0.25); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+  <nav class="glass sticky top-0 z-50 border-b border-slate-800">
+    <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="../../frontend/index-zh.html" class="font-semibold text-lg tracking-tight hover:text-sky-400 transition">Mirror · 镜身</a>
+      <div class="flex items-center gap-2 text-sm">
+        <a href="how-it-works.html" class="px-2 py-1 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition">EN</a>
+        <span class="px-2 py-1 rounded-md bg-sky-400/10 text-sky-400 font-medium">中文</span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-5xl mx-auto px-6 py-16">
+    <section class="text-center mb-16">
+      <h1 class="text-4xl md:text-5xl font-bold mb-4">误差检测算法说明</h1>
+      <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+        我们将人体动作尝试与机器人参考动作对比，找出最重要的差异，驱动「镜面/反馈」闭环。
+      </p>
+    </section>
+
+    <section class="glass rounded-2xl p-8 mb-10 glow">
+      <h2 class="text-2xl font-semibold mb-4 text-sky-400">流程</h2>
+      <ol class="list-decimal list-inside space-y-2 text-slate-300 mb-6">
+        <li><strong>标准姿态提取</strong> — G1 参考和人体都被归约成 8 个可解释的角度特征（手臂抬高 / 方位、肘部弯曲、躯干偏航 / 倾斜）。</li>
+        <li><strong>时序对齐</strong> — <code>DTWAligner</code> 使用 Dynamic Time Warping（动态时间规整），让时间漂移不会破坏对比。</li>
+        <li><strong>差值引擎</strong> — 对每个已对齐的帧对，计算每个特征的带符号误差；对循环角度采用最短路径环绕（例如 359° 与 1° 的差值为 2°）。</li>
+        <li><strong>排序</strong> — <code>ErrorRanker</code> 按「误差大小 × 重要度 × 置信度」为每个特征打分，挑选出最值得展示的唯一关键误差。</li>
+        <li><strong>输出</strong> — 返回主误差、排序列表、时间滞后，供可视化报告使用。</li>
+      </ol>
+      <div class="grid md:grid-cols-2 gap-4 text-sm">
+        <div class="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
+          <h3 class="font-semibold text-sky-300 mb-2">标准特征</h3>
+          <ul class="list-disc list-inside text-slate-400 space-y-1">
+            <li>left_arm_elevation / right_arm_elevation</li>
+            <li>left_arm_azimuth / right_arm_azimuth</li>
+            <li>left_elbow_flexion / right_elbow_flexion</li>
+            <li>torso_yaw / torso_lean</li>
+          </ul>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900/50 border border-slate-800">
+          <h3 class="font-semibold text-sky-300 mb-2">关键技巧</h3>
+          <ul class="list-disc list-inside text-slate-400 space-y-1">
+            <li>范围归一化的 DTW 代价，让所有特征公平贡献</li>
+            <li>角度的循环环绕</li>
+            <li>置信度 = 显著性 × 一致性，衡量整段动作的可靠程度</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-semibold mb-6 text-center">流程图</h2>
+      <div class="glass rounded-2xl p-6 glow overflow-x-auto">
+        <img src="diagram-zh.svg" alt="算法流程图" class="w-full rounded-xl" />
+      </div>
+    </section>
+
+    <section class="grid md:grid-cols-3 gap-6 mb-12">
+      <a href="index-zh.html" class="block glass rounded-2xl p-6 hover:border-sky-400 transition text-center">
+        <h3 class="text-lg font-semibold mb-2">打开可视化报告</h3>
+        <p class="text-slate-400 text-sm">查看 DTW 对齐、排序误差和已保存 JSON 报告的主误差。</p>
+      </a>
+      <a href="../../demos/g1_23dof_coach.html" class="block glass rounded-2xl p-6 hover:border-sky-400 transition text-center">
+        <h3 class="text-lg font-semibold mb-2">实时对标教练</h3>
+        <p class="text-slate-400 text-sm">用摄像头和参考视频实时运行相同的对比逻辑。</p>
+      </a>
+      <a href="../../docs/PRD.md" class="block glass rounded-2xl p-6 hover:border-sky-400 transition text-center">
+        <h3 class="text-lg font-semibold mb-2">阅读 PRD</h3>
+        <p class="text-slate-400 text-sm">产品需求、用户场景和完整的 Mirror 闭环。</p>
+      </a>
+    </section>
+
+    <section class="text-center text-slate-500 text-sm">
+      Mirror · 镜身 — VentureD Hackathon 2026 · Track 02 Physical AI
+    </section>
+  </main>
+
+</body>
+</html>

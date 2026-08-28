@@ -19,7 +19,13 @@
   <nav class="glass sticky top-0 z-50 border-b border-slate-800">
     <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
       <a href="../../frontend/index.html" class="font-semibold text-lg tracking-tight hover:text-sky-400 transition">Mirror · 镜身</a>
-      <a href="index.html" class="text-sm text-slate-400 hover:text-white transition">Visualizer</a>
+      <div class="flex items-center gap-4">
+        <a href="index.html" class="text-sm text-slate-400 hover:text-white transition">Visualizer</a>
+        <div class="flex items-center gap-2 text-sm">
+          <span class="px-2 py-1 rounded-md bg-sky-400/10 text-sky-400 font-medium">EN</span>
+          <a href="how-it-works-zh.html" class="px-2 py-1 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition">中文</a>
+        </div>
+      </div>
     </div>
   </nav>
 
@@ -58,6 +64,13 @@
             <li>Confidence = significance × consistency over the motion</li>
           </ul>
         </div>
+      </div>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-2xl font-semibold mb-6 text-center">Pipeline Diagram</h2>
+      <div class="glass rounded-2xl p-6 glow overflow-x-auto">
+        <img src="diagram-en.svg" alt="Algorithm pipeline diagram" class="w-full rounded-xl" />
       </div>
     </section>
 

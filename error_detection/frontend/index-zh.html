@@ -1,19 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Error Detection Visualizer</title>
+  <title>误差检测可视化报告</title>
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: system-ui, -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif;
       margin: 0;
       background: #0f172a;
       color: #e2e8f0;
       line-height: 1.5;
     }
+    .nav {
+      background: rgba(30, 41, 59, 0.85);
+      border-bottom: 1px solid #334155;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav a { color: #e2e8f0; text-decoration: none; font-weight: 500; }
+    .nav a:hover { color: #38bdf8; }
+    .lang-switch { display: flex; gap: 0.5rem; font-size: 0.9rem; }
+    .lang-switch a { padding: 0.25rem 0.5rem; border-radius: 0.375rem; color: #94a3b8; }
+    .lang-switch a:hover { background: #1e293b; color: #e2e8f0; }
+    .lang-switch span { padding: 0.25rem 0.5rem; border-radius: 0.375rem; background: #38bdf8; color: #0f172a; }
     .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
     h1 { color: #38bdf8; margin: 0 0 0.25rem; }
     .subtitle { color: #94a3b8; margin-bottom: 1.5rem; }
@@ -56,56 +70,56 @@
   </style>
 </head>
 <body>
-  <nav style="background:rgba(30,41,59,0.85); border-bottom:1px solid #334155; padding:0.75rem 1.5rem; display:flex; align-items:center; justify-content:space-between;">
-    <a href="../../frontend/index.html" style="color:#e2e8f0; text-decoration:none; font-weight:500;">Mirror · 镜身</a>
-    <div style="display:flex; gap:0.5rem; font-size:0.9rem;">
-      <span style="padding:0.25rem 0.5rem; border-radius:0.375rem; background:#38bdf8; color:#0f172a;">EN</span>
-      <a href="index-zh.html" style="padding:0.25rem 0.5rem; border-radius:0.375rem; color:#94a3b8; text-decoration:none;">中文</a>
+  <nav class="nav">
+    <a href="../../frontend/index-zh.html">Mirror · 镜身</a>
+    <div class="lang-switch">
+      <a href="index.html">EN</a>
+      <span>中文</span>
     </div>
   </nav>
 
   <div class="container">
-    <h1>Error Detection Visualizer</h1>
-    <p class="subtitle">Compare human motion vs. robot reference and inspect detected errors</p>
+    <h1>误差检测可视化报告</h1>
+    <p class="subtitle">对比人体动作与机器人参考，查看检测出的误差</p>
 
     <div class="row">
       <select id="scenarioSelect">
-        <option value="/error_detection_output/result.json">Latest demo result</option>
+        <option value="/error_detection_output/result.json">最新 demo 结果</option>
         <option value="/error_detection_output/demos/right_arm_too_low.json">Demo: right_arm_too_low</option>
         <option value="/error_detection_output/demos/left_arm_forward.json">Demo: left_arm_forward</option>
         <option value="/error_detection_output/demos/right_elbow_bent.json">Demo: right_elbow_bent</option>
         <option value="/error_detection_output/demos/torso_twisted.json">Demo: torso_twisted</option>
         <option value="/error_detection_output/demos/multiple_errors.json">Demo: multiple_errors</option>
-        <option value="custom">Custom JSON path...</option>
+        <option value="custom">自定义 JSON 路径…</option>
       </select>
       <input id="customPath" type="text" placeholder="path/to/result.json" style="display:none; min-width: 300px;">
-      <button id="loadBtn">Load result</button>
+      <button id="loadBtn">加载结果</button>
       <input type="file" id="fileInput" accept=".json" style="display:none;">
-      <button id="uploadBtn">Upload JSON</button>
+      <button id="uploadBtn">上传 JSON</button>
     </div>
 
     <div class="grid" id="summaryCards">
-      <div class="card"><h3>Primary Error</h3><div class="metric empty">-</div><div class="metric-label">Select a result to inspect</div></div>
-      <div class="card"><h3>Magnitude</h3><div class="metric empty">-</div><div class="metric-label">Max absolute error</div></div>
-      <div class="card"><h3>Confidence</h3><div class="metric empty">-</div><div class="metric-label">Detection confidence</div></div>
+      <div class="card"><h3>主误差</h3><div class="metric empty">-</div><div class="metric-label">选择一个结果开始查看</div></div>
+      <div class="card"><h3>幅度</h3><div class="metric empty">-</div><div class="metric-label">最大绝对误差</div></div>
+      <div class="card"><h3>置信度</h3><div class="metric empty">-</div><div class="metric-label">检测置信度</div></div>
     </div>
 
     <div class="card" style="margin-top: 1rem;">
-      <h3>Ranked Errors</h3>
+      <h3>排序误差</h3>
       <div class="legend">
-        <span><span class="dot" style="background:#f87171"></span>Error magnitude</span>
-        <span><span class="dot" style="background:#38bdf8"></span>Weighted score (magnitude × importance × confidence)</span>
+        <span><span class="dot" style="background:#f87171"></span>误差幅度</span>
+        <span><span class="dot" style="background:#38bdf8"></span>加权分数（幅度 × 重要度 × 置信度）</span>
       </div>
       <div id="rankedChart" class="chart"></div>
     </div>
 
     <div class="card" style="margin-top: 1rem;">
-      <h3>Primary Error Over Time</h3>
+      <h3>主误差随时间变化</h3>
       <div id="timelineChart" class="chart"></div>
     </div>
 
     <div class="card" style="margin-top: 1rem;">
-      <h3>DTW Alignment Path</h3>
+      <h3>DTW 对齐路径</h3>
       <div id="alignmentChart" class="chart"></div>
     </div>
   </div>
@@ -127,7 +141,7 @@
       try {
         render(JSON.parse(text));
       } catch (err) {
-        alert('Invalid JSON: ' + err.message);
+        alert('JSON 无效：' + err.message);
       }
     };
 
@@ -140,7 +154,7 @@
         if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
         render(await res.json());
       } catch (err) {
-        alert('Failed to load result: ' + err.message);
+        alert('加载结果失败：' + err.message);
       }
     };
 
@@ -149,32 +163,30 @@
       const ranked = data.ranked_errors || [];
       const alignment = data.alignment || [];
 
-      // Summary cards
       const cards = document.getElementById('summaryCards');
       cards.innerHTML = `
         <div class="card">
-          <h3>Primary Error</h3>
+          <h3>主误差</h3>
           <div class="metric feature-name">${primary.feature.replace(/_/g, ' ')}</div>
-          <div class="metric-label">${primary.mean_error.toFixed(1)}° mean error</div>
+          <div class="metric-label">平均误差 ${primary.mean_error.toFixed(1)}°</div>
         </div>
         <div class="card">
-          <h3>Magnitude</h3>
+          <h3>幅度</h3>
           <div class="metric">${primary.max_abs_error.toFixed(1)}°</div>
-          <div class="metric-label">Max absolute error</div>
+          <div class="metric-label">最大绝对误差</div>
         </div>
         <div class="card">
-          <h3>Confidence</h3>
+          <h3>置信度</h3>
           <div class="metric">${(primary.confidence * 100).toFixed(0)}%</div>
-          <div class="metric-label">Detection confidence</div>
+          <div class="metric-label">检测置信度</div>
         </div>
         <div class="card">
-          <h3>Rhythm Error</h3>
+          <h3>节奏误差</h3>
           <div class="metric">${(data.timing_error_sec || 0).toFixed(3)}s</div>
-          <div class="metric-label">Mean aligned timestamp lag</div>
+          <div class="metric-label">平均对齐时间滞后</div>
         </div>
       `;
 
-      // Ranked errors bar chart
       const features = ranked.map(e => e.feature.replace(/_/g, ' '));
       const magnitudes = ranked.map(e => e.max_abs_error);
       const weighted = ranked.map(e =>
@@ -182,11 +194,11 @@
       );
       Plotly.newPlot('rankedChart', [
         {
-          x: features, y: magnitudes, type: 'bar', name: 'Magnitude',
+          x: features, y: magnitudes, type: 'bar', name: '误差幅度',
           marker: { color: '#f87171' }
         },
         {
-          x: features, y: weighted, type: 'bar', name: 'Weighted score',
+          x: features, y: weighted, type: 'bar', name: '加权分数',
           marker: { color: '#38bdf8' }
         }
       ], {
@@ -195,13 +207,10 @@
         plot_bgcolor: '#1e293b',
         font: { color: '#e2e8f0' },
         margin: { t: 20 },
-        yaxis: { title: 'degrees / score', gridcolor: '#334155' },
+        yaxis: { title: '角度 / 分数', gridcolor: '#334155' },
         xaxis: { tickangle: -25 }
       }, { responsive: true });
 
-      // Timeline of primary error over aligned frames
-      // We don't have per-frame data in the saved JSON, so reconstruct aligned
-      // timestamps from the alignment array if present.
       if (alignment.length > 0) {
         const idx = Array.from({length: alignment.length}, (_, i) => i);
         const pairs = alignment.map(p => p);
@@ -210,7 +219,7 @@
             x: idx,
             y: pairs.map(() => primary.max_abs_error),
             mode: 'lines',
-            name: 'Primary error envelope',
+            name: '主误差包络',
             line: { color: '#f87171', width: 2, dash: 'dot' },
             opacity: 0.5
           }
@@ -219,12 +228,12 @@
           plot_bgcolor: '#1e293b',
           font: { color: '#e2e8f0' },
           margin: { t: 20 },
-          yaxis: { title: 'degrees', gridcolor: '#334155' },
-          xaxis: { title: 'aligned frame index', gridcolor: '#334155' },
+          yaxis: { title: '角度', gridcolor: '#334155' },
+          xaxis: { title: '对齐帧索引', gridcolor: '#334155' },
           annotations: [{
             x: idx[Math.floor(idx.length / 2)],
             y: primary.max_abs_error,
-            text: `Worst mismatch: ${primary.max_abs_error.toFixed(1)}°`,
+            text: `最大不匹配：${primary.max_abs_error.toFixed(1)}°`,
             showarrow: true,
             arrowhead: 2,
             font: { color: '#e2e8f0' }
@@ -232,22 +241,21 @@
         }, { responsive: true });
       }
 
-      // DTW alignment path
       const refIdx = alignment.map(p => p[0]);
       const humanIdx = alignment.map(p => p[1]);
       Plotly.newPlot('alignmentChart', [
         {
           x: refIdx, y: humanIdx, mode: 'lines',
           line: { color: '#38bdf8', width: 2 },
-          name: 'Alignment path'
+          name: '对齐路径'
         }
       ], {
         paper_bgcolor: '#1e293b',
         plot_bgcolor: '#1e293b',
         font: { color: '#e2e8f0' },
         margin: { t: 20 },
-        xaxis: { title: 'reference frame', gridcolor: '#334155' },
-        yaxis: { title: 'human frame', gridcolor: '#334155' },
+        xaxis: { title: '参考帧', gridcolor: '#334155' },
+        yaxis: { title: '人体帧', gridcolor: '#334155' },
         shapes: [{
           type: 'line', x0: 0, y0: 0,
           x1: Math.max(...refIdx, 1), y1: Math.max(...humanIdx, 1),

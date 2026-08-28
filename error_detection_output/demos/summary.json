@@ -1,0 +1,98 @@
+[
+  {
+    "scenario": "perfect_mimic",
+    "primary_feature": "left_arm_elevation",
+    "max_abs_error": 0.0,
+    "confidence": 0.4,
+    "timing_error_sec": 0.0,
+    "ranked_top3": [
+      "left_arm_elevation",
+      "right_arm_elevation",
+      "left_arm_azimuth"
+    ]
+  },
+  {
+    "scenario": "right_arm_too_low",
+    "primary_feature": "right_arm_elevation",
+    "max_abs_error": 30.0,
+    "confidence": 0.45,
+    "timing_error_sec": 0.2186,
+    "ranked_top3": [
+      "right_arm_elevation",
+      "left_arm_elevation",
+      "left_arm_azimuth"
+    ]
+  },
+  {
+    "scenario": "left_arm_forward",
+    "primary_feature": "left_arm_azimuth",
+    "max_abs_error": 45.0,
+    "confidence": 0.473,
+    "timing_error_sec": 0.2358,
+    "ranked_top3": [
+      "left_arm_azimuth",
+      "left_arm_elevation",
+      "right_arm_elevation"
+    ]
+  },
+  {
+    "scenario": "right_elbow_bent",
+    "primary_feature": "right_elbow_flexion",
+    "max_abs_error": 35.0,
+    "confidence": 0.459,
+    "timing_error_sec": 0.238,
+    "ranked_top3": [
+      "right_elbow_flexion",
+      "left_arm_elevation",
+      "right_arm_elevation"
+    ]
+  },
+  {
+    "scenario": "torso_twisted",
+    "primary_feature": "torso_yaw",
+    "max_abs_error": 25.0,
+    "confidence": 0.439,
+    "timing_error_sec": 0.2009,
+    "ranked_top3": [
+      "torso_yaw",
+      "left_arm_elevation",
+      "right_arm_elevation"
+    ]
+  },
+  {
+    "scenario": "slow_human",
+    "primary_feature": "left_arm_elevation",
+    "max_abs_error": 0.0,
+    "confidence": 0.4,
+    "timing_error_sec": 0.295,
+    "ranked_top3": [
+      "left_arm_elevation",
+      "right_arm_elevation",
+      "left_arm_azimuth"
+    ]
+  },
+  {
+    "scenario": "multiple_errors",
+    "primary_feature": "right_arm_elevation",
+    "max_abs_error": 20.0,
+    "confidence": 0.445,
+    "timing_error_sec": 0.0476,
+    "ranked_top3": [
+      "right_arm_elevation",
+      "right_elbow_flexion",
+      "left_arm_elevation"
+    ]
+  },
+  {
+    "scenario": "azimuth_wrap",
+    "primary_feature": "left_arm_azimuth",
+    "max_abs_error": 10.0,
+    "confidence": 0.416,
+    "timing_error_sec": 0.1255,
+    "ranked_top3": [
+      "left_arm_azimuth",
+      "left_arm_elevation",
+      "right_arm_elevation"
+    ]
+  }
+]

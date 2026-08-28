@@ -1,0 +1,467 @@
+{
+  "primary_error": {
+    "feature": "torso_yaw",
+    "mean_error": 16.835972136389223,
+    "std_error": 9.895028259985757,
+    "max_abs_error": 25.0,
+    "confidence": 0.439,
+    "feature_importance": 0.5
+  },
+  "ranked_errors": [
+    {
+      "feature": "torso_yaw",
+      "mean_error": 16.835972136389223,
+      "std_error": 9.895028259985757,
+      "max_abs_error": 25.0,
+      "confidence": 0.439,
+      "feature_importance": 0.5
+    },
+    {
+      "feature": "left_arm_elevation",
+      "mean_error": 0.0,
+      "std_error": 0.0,
+      "max_abs_error": 0.0,
+      "confidence": 0.4,
+      "feature_importance": 1.0
+    },
+    {
+      "feature": "right_arm_elevation",
+      "mean_error": 0.0,
+      "std_error": 0.0,
+      "max_abs_error": 0.0,
+      "confidence": 0.4,
+      "feature_importance": 1.0
+    },
+    {
+      "feature": "left_arm_azimuth",
+      "mean_error": 0.0,
+      "std_error": 0.0,
+      "max_abs_error": 0.0,
+      "confidence": 0.4,
+      "feature_importance": 0.8
+    },
+    {
+      "feature": "right_arm_azimuth",
+      "mean_error": 0.0,
+      "std_error": 0.0,
+      "max_abs_error": 0.0,
+      "confidence": 0.4,
+      "feature_importance": 0.8
+    },
+    {
+      "feature": "left_elbow_flexion",
+      "mean_error": 0.0,
+      "std_error": 0.0,
+      "max_abs_error": 0.0,
+      "confidence": 0.4,
+      "feature_importance": 0.7
+    },
+    {
+      "feature": "right_elbow_flexion",
+      "mean_error": 0.0,
+      "std_error": 0.0,
+      "max_abs_error": 0.0,
+      "confidence": 0.4,
+      "feature_importance": 0.7
+    },
+    {
+      "feature": "torso_lean",
+      "mean_error": 0.0,
+      "std_error": 0.0,
+      "max_abs_error": 0.0,
+      "confidence": 0.4,
+      "feature_importance": 0.5
+    }
+  ],
+  "alignment": [
+    [
+      0,
+      0
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      2,
+      2
+    ],
+    [
+      3,
+      3
+    ],
+    [
+      4,
+      4
+    ],
+    [
+      5,
+      5
+    ],
+    [
+      6,
+      6
+    ],
+    [
+      7,
+      7
+    ],
+    [
+      8,
+      8
+    ],
+    [
+      9,
+      9
+    ],
+    [
+      10,
+      10
+    ],
+    [
+      11,
+      11
+    ],
+    [
+      12,
+      12
+    ],
+    [
+      13,
+      13
+    ],
+    [
+      14,
+      14
+    ],
+    [
+      15,
+      15
+    ],
+    [
+      15,
+      16
+    ],
+    [
+      15,
+      17
+    ],
+    [
+      15,
+      18
+    ],
+    [
+      15,
+      19
+    ],
+    [
+      15,
+      20
+    ],
+    [
+      15,
+      21
+    ],
+    [
+      15,
+      22
+    ],
+    [
+      15,
+      23
+    ],
+    [
+      15,
+      24
+    ],
+    [
+      15,
+      25
+    ],
+    [
+      15,
+      26
+    ],
+    [
+      15,
+      27
+    ],
+    [
+      15,
+      28
+    ],
+    [
+      15,
+      29
+    ],
+    [
+      15,
+      30
+    ],
+    [
+      16,
+      31
+    ],
+    [
+      17,
+      32
+    ],
+    [
+      18,
+      33
+    ],
+    [
+      19,
+      33
+    ],
+    [
+      20,
+      34
+    ],
+    [
+      21,
+      34
+    ],
+    [
+      22,
+      35
+    ],
+    [
+      23,
+      36
+    ],
+    [
+      24,
+      37
+    ],
+    [
+      25,
+      38
+    ],
+    [
+      26,
+      39
+    ],
+    [
+      26,
+      40
+    ],
+    [
+      27,
+      41
+    ],
+    [
+      27,
+      42
+    ],
+    [
+      28,
+      43
+    ],
+    [
+      29,
+      44
+    ],
+    [
+      30,
+      45
+    ],
+    [
+      31,
+      45
+    ],
+    [
+      32,
+      45
+    ],
+    [
+      33,
+      45
+    ],
+    [
+      34,
+      45
+    ],
+    [
+      35,
+      45
+    ],
+    [
+      36,
+      45
+    ],
+    [
+      37,
+      45
+    ],
+    [
+      38,
+      45
+    ],
+    [
+      39,
+      45
+    ],
+    [
+      40,
+      45
+    ],
+    [
+      41,
+      45
+    ],
+    [
+      42,
+      45
+    ],
+    [
+      43,
+      45
+    ],
+    [
+      44,
+      45
+    ],
+    [
+      45,
+      45
+    ],
+    [
+      46,
+      46
+    ],
+    [
+      47,
+      47
+    ],
+    [
+      48,
+      48
+    ],
+    [
+      49,
+      49
+    ],
+    [
+      50,
+      50
+    ],
+    [
+      51,
+      51
+    ],
+    [
+      52,
+      52
+    ],
+    [
+      53,
+      53
+    ],
+    [
+      54,
+      54
+    ],
+    [
+      55,
+      55
+    ],
+    [
+      56,
+      56
+    ],
+    [
+      57,
+      57
+    ],
+    [
+      58,
+      58
+    ],
+    [
+      59,
+      59
+    ]
+  ],
+  "timing_error_sec": 0.2009,
+  "summary": {
+    "primary_error": {
+      "feature": "torso_yaw",
+      "mean_error": 16.835972136389223,
+      "std_error": 9.895028259985757,
+      "max_abs_error": 25.0,
+      "confidence": 0.439,
+      "feature_importance": 0.5
+    },
+    "all_errors": [
+      {
+        "feature": "torso_yaw",
+        "mean_error": 16.835972136389223,
+        "std_error": 9.895028259985757,
+        "max_abs_error": 25.0,
+        "confidence": 0.439,
+        "feature_importance": 0.5
+      },
+      {
+        "feature": "left_arm_elevation",
+        "mean_error": 0.0,
+        "std_error": 0.0,
+        "max_abs_error": 0.0,
+        "confidence": 0.4,
+        "feature_importance": 1.0
+      },
+      {
+        "feature": "right_arm_elevation",
+        "mean_error": 0.0,
+        "std_error": 0.0,
+        "max_abs_error": 0.0,
+        "confidence": 0.4,
+        "feature_importance": 1.0
+      },
+      {
+        "feature": "left_arm_azimuth",
+        "mean_error": 0.0,
+        "std_error": 0.0,
+        "max_abs_error": 0.0,
+        "confidence": 0.4,
+        "feature_importance": 0.8
+      },
+      {
+        "feature": "right_arm_azimuth",
+        "mean_error": 0.0,
+        "std_error": 0.0,
+        "max_abs_error": 0.0,
+        "confidence": 0.4,
+        "feature_importance": 0.8
+      },
+      {
+        "feature": "left_elbow_flexion",
+        "mean_error": 0.0,
+        "std_error": 0.0,
+        "max_abs_error": 0.0,
+        "confidence": 0.4,
+        "feature_importance": 0.7
+      },
+      {
+        "feature": "right_elbow_flexion",
+        "mean_error": 0.0,
+        "std_error": 0.0,
+        "max_abs_error": 0.0,
+        "confidence": 0.4,
+        "feature_importance": 0.7
+      },
+      {
+        "feature": "torso_lean",
+        "mean_error": 0.0,
+        "std_error": 0.0,
+        "max_abs_error": 0.0,
+        "confidence": 0.4,
+        "feature_importance": 0.5
+      }
+    ],
+    "alignment_length": 77,
+    "reference_frames": 60,
+    "human_frames": 60,
+    "timing_error_sec": 0.2009
+  }
+}
