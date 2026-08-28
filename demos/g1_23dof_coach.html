@@ -479,18 +479,18 @@
       // MediaPipe's WASM runtime prints INFO messages (e.g. "Created TensorFlow Lite
       // XNNPACK delegate for CPU") for every processed frame. This is normal and not
       // an error, but it spams the console. Filter it out so real errors remain visible.
-      const originalInfo = console.info;
-      console.info = function (...args) {
+      const mpSpamPatterns = ["vision_wasm", "XNNPACK", "TensorFlow Lite", "INFO: Created"];
+      function isMpSpam(args) {
         const msg = args.join(" ");
-        if (
-          msg.includes("vision_wasm") ||
-          msg.includes("XNNPACK") ||
-          msg.includes("TensorFlow Lite")
-        ) {
-          return;
-        }
-        originalInfo.apply(console, args);
-      };
+        return mpSpamPatterns.some((p) => msg.includes(p));
+      }
+      ["info", "log", "warn", "error"].forEach((method) => {
+        const original = console[method];
+        console[method] = function (...args) {
+          if (isMpSpam(args)) return;
+          original.apply(console, args);
+        };
+      });
 
       const L_SH = 11,
         R_SH = 12,
@@ -935,6 +935,8 @@
         const voice = openaiVoiceSelect.value;
         try {
           ttsStatusEl.textContent = "正在请求 OpenAI 语音…";
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
           const res = await fetch("https://api.openai.com/v1/audio/speech", {
             method: "POST",
             headers: {
@@ -948,7 +950,9 @@
               instructions: "Speak in the energetic, encouraging tone of a fitness coach. Enunciate clearly in Chinese.",
               response_format: "mp3",
             }),
+            signal: controller.signal,
           });
+          clearTimeout(timeoutId);
           if (!res.ok) {
             const errText = await res.text().catch(() => "");
             throw new Error(`OpenAI TTS ${res.status} ${errText}`);
@@ -956,8 +960,13 @@
           const blob = await res.blob();
           await outputAudio(blob);
         } catch (err) {
-          console.error("OpenAI 语音出错：", err);
-          ttsStatusEl.textContent = "OpenAI 请求失败：" + err.message + "，已切换浏览器语音";
+          if (err.name === "AbortError") {
+            console.warn("OpenAI TTS timed out, falling back to browser TTS");
+            ttsStatusEl.textContent = "OpenAI 请求超时，已切换浏览器语音";
+          } else {
+            console.error("OpenAI 语音出错：", err);
+            ttsStatusEl.textContent = "OpenAI 请求失败：" + err.message + "，已切换浏览器语音";
+          }
           speakBrowser(text);
         }
       }
@@ -1561,6 +1570,9 @@
         if (ttsAudio) {
           ttsAudio.pause();
           ttsAudio.currentTime = 0;
+        }
+        if (window.speechSynthesis) {
+          window.speechSynthesis.cancel();
         }
         document.getElementById("stopBtn").disabled = true;
         setTalk("已停止", "wait");
