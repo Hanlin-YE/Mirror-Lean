@@ -1449,12 +1449,21 @@
       };
 
       function refreshGo() {
-        goBtn.disabled = !(
-          robot.src &&
-          cam.srcObject &&
-          window.__robotLmkr &&
-          window.__camLmkr
-        );
+        const videoReady = !!robot.src;
+        const camReady = !!cam.srcObject;
+        const modelReady = !!window.__robotLmkr && !!window.__camLmkr;
+        const canStart = videoReady && camReady && modelReady;
+        goBtn.disabled = !canStart;
+
+        if (canStart) {
+          talkMetaEl.textContent = "";
+        } else {
+          const missing = [];
+          if (!videoReady) missing.push("选择参考视频");
+          if (!camReady) missing.push("打开摄像头");
+          if (!modelReady) missing.push("等待模型加载");
+          talkMetaEl.textContent = "还不能开始：请先 " + missing.join(" → ");
+        }
       }
 
       async function loadModel() {
