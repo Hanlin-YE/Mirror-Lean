@@ -146,6 +146,44 @@
         border-radius: 3px;
         transition: width 0.15s;
       }
+      .report-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(7, 11, 22, 0.92);
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      .report-card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        width: min(720px, 100%);
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 1.5rem;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+      }
+      .report-card h2 { margin: 0 0 0.5rem; color: var(--sky); }
+      .report-score { font-size: 3rem; font-weight: 700; color: var(--ok); margin: 0; }
+      .report-comment { color: var(--muted); margin: 0 0 1rem; }
+      .report-parts { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 1rem 0; }
+      .report-parts div { background: var(--bg); padding: 0.6rem; border-radius: 10px; display: flex; justify-content: space-between; }
+      .report-parts span { font-weight: 700; color: var(--sky); }
+      .report-suggestions { margin: 0; padding-left: 1.2rem; }
+      .report-suggestions li { margin: 0.4rem 0; color: var(--text); }
+      .report-tip { color: var(--muted); font-size: 0.9rem; margin-top: 1rem; }
+      .report-actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
+      .report-actions button { flex: 1; }
+      @media print {
+        body * { visibility: hidden; }
+        .report-modal, .report-modal * { visibility: visible; }
+        .report-modal { position: absolute; left: 0; top: 0; width: 100%; height: auto; display: flex !important; background: #fff; color: #000; }
+        .report-card { box-shadow: none; border: none; width: 100%; max-height: none; overflow: visible; color: #000; }
+        .report-actions { display: none; }
+      }
       .data-panel {
         grid-column: 1 / 3;
         grid-row: 2;
@@ -392,6 +430,7 @@
       let g1History = [];
       let youHistory = [];
       let pendingErr = null;
+      let danceLog = [];
 
       function setTalk(text, kind) {
         talkEl.textContent = text;
@@ -632,7 +671,31 @@
         }
         live.sort((a, b) => b.score - a.score);
         updateErrorChart(live);
-        if (!isUserMoving(now)) {
+        const top = live[0];
+        const userMoving = isUserMoving(now);
+        if (running && userMoving) {
+          danceLog.push({
+            t: now,
+            robotT: robot.currentTime,
+            top: {
+              partName: top.partName,
+              feature: top.feature,
+              maxAbs: top.maxAbs,
+              threshold: top.threshold,
+              min: top.min,
+              text: top.text,
+            },
+            all: live.map((i) => ({
+              partName: i.partName,
+              feature: i.feature,
+              maxAbs: i.maxAbs,
+              threshold: i.threshold,
+              min: i.min,
+              text: i.text,
+            })),
+          });
+        }
+        if (!userMoving) {
           if (talkEl.textContent.trim() !== "请先跟随 G1 做动作") {
             setTalk("请先跟随 G1 做动作", "wait");
           }
@@ -640,7 +703,6 @@
           skillFillEl.style.width = "0%";
           return;
         }
-        const top = live[0];
         const part = top.partName || top.feature;
         const similarity = Math.max(0, 1 - Math.min(top.maxAbs / top.threshold, 1)) * 100;
         const skill = Math.round(similarity);
@@ -654,6 +716,82 @@
         skillFillEl.style.width = `${skill}%`;
         skillFillEl.style.background =
           skill > 80 ? "var(--ok)" : skill > 50 ? "var(--warn)" : "var(--bad)";
+      }
+
+      function showReport() {
+        const modal = document.getElementById("reportModal");
+        const content = document.getElementById("reportContent");
+        if (!danceLog.length) {
+          content.innerHTML = `
+            <h2>舞蹈对标报告</h2>
+            <p>没有采集到数据。请开始对标并跟随 G1 完成后再查看。</p>
+          `;
+          modal.style.display = "flex";
+          return;
+        }
+        const overall = { gap: 0, threshold: 0 };
+        const parts = {};
+        danceLog.forEach((frame) => {
+          if (frame.top) {
+            overall.gap += frame.top.maxAbs;
+            overall.threshold += frame.top.threshold;
+          }
+          frame.all.forEach((item) => {
+            const key = item.partName || item.feature;
+            if (!parts[key]) {
+              parts[key] = { gap: 0, threshold: 0, count: 0, text: item.text };
+            }
+            parts[key].gap += item.maxAbs;
+            parts[key].threshold += item.threshold;
+            parts[key].count++;
+          });
+        });
+        const overallScore = Math.max(
+          0,
+          Math.min(100, Math.round(100 - (overall.gap / overall.threshold) * 100))
+        );
+        const partEntries = Object.entries(parts).map(([name, p]) => ({
+          name,
+          text: p.text,
+          score: Math.max(
+            0,
+            Math.min(100, Math.round(100 - (p.gap / p.threshold) * 100))
+          ),
+        }));
+        partEntries.sort((a, b) => a.score - b.score);
+        const weak = partEntries.filter((p) => p.score < 70);
+        const comment =
+          overallScore >= 80
+            ? "整体表现很棒！动作和 G1 非常同步。"
+            : overallScore >= 60
+            ? "整体不错，继续加油！"
+            : "继续练习，动作会越来越像！";
+        const suggestionHtml = weak.length
+          ? `<ul class="report-suggestions">${weak
+              .slice(0, 3)
+              .map(
+                (p) =>
+                  `<li><strong>${p.name}</strong>需要多练，试着${p.text}</li>`
+              )
+              .join("")}</ul>`
+          : `<p>各部分都表现不错，保持练习！</p>`;
+        const partHtml = partEntries
+          .map((p) => `<div>${p.name}<span>${p.score}%</span></div>`)
+          .join("");
+        content.innerHTML = `
+          <h2>舞蹈对标报告</h2>
+          <p class="report-score">${overallScore}%</p>
+          <p class="report-comment">${comment}</p>
+          <div class="report-parts">${partHtml}</div>
+          <h3>可以提升</h3>
+          ${suggestionHtml}
+          <p class="report-tip">基础建议：先单独练习手臂动作，再练习腿部动作，最后把上下半身连起来。</p>
+        `;
+        modal.style.display = "flex";
+      }
+
+      function closeReport() {
+        document.getElementById("reportModal").style.display = "none";
       }
 
       function fitCanvas(video, canvas) {
@@ -808,7 +946,9 @@
         lastRobotT = -1;
         g1History = [];
         youHistory = [];
+        danceLog = [];
         pendingErr = null;
+        robot.onended = () => { if (running) stopBtn.click(); };
         await robot.play();
         setTalk("跟着 G1 做，系统在比同一时刻", "wait");
         statusEl.textContent = "对标中。点击停止可随时结束。";
@@ -822,6 +962,7 @@
         document.getElementById("stopBtn").disabled = true;
         setTalk("已停止", "wait");
         statusEl.textContent = "已停止。点击开始对标继续。";
+        showReport();
       };
 
       window.addEventListener("keydown", (e) => {
@@ -899,5 +1040,15 @@
 
       loop();
     </script>
+
+    <div id="reportModal" class="report-modal">
+      <div class="report-card">
+        <div id="reportContent"></div>
+        <div class="report-actions">
+          <button onclick="window.print()">保存 PDF / 打印</button>
+          <button onclick="closeReport()">关闭</button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
