@@ -1,13 +1,13 @@
 #!/usr/bin/expect -f
 # Password-based deployment for the robot speaker server + Unitree stock TTS helper.
 # Usage: expect .deploy_robot_speaker.exp
-set timeout 120
+set timeout 180
 set user "unitree"
 set host "192.168.52.241"
 set pass "123"
 set remote_dir "/home/unitree/robot-speaker"
 
-proc handle_auth {} {
+proc handle_password {} {
     global pass
     expect {
         -re "password:\\s*" { send -- "$pass\r"; exp_continue }
@@ -16,10 +16,8 @@ proc handle_auth {} {
     }
 }
 
-proc wait_shell {msg} {
+proc wait_eof {label} {
     expect {
-        -re "\\\\$\\s+" { }
-        -re "\\]\\#\\s+" { }
         -re "password:\\s*" {
             global pass
             send -- "$pass\r"
@@ -29,45 +27,39 @@ proc wait_shell {msg} {
             send -- "1\r"
             exp_continue
         }
+        eof { }
         timeout {
-            puts "\nERROR: timed out waiting for shell prompt while: $msg"
+            puts "\nERROR: timed out during: $label"
             exit 1
         }
     }
 }
 
-puts "\[1/5\] Connecting to ${user}@${host} and creating ${remote_dir}..."
+puts "\n\[1/5\] Creating remote directory ${remote_dir}..."
 spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "mkdir -p ${remote_dir}"
-handle_auth
-wait_shell "creating remote dir"
+handle_password
+wait_eof "creating remote dir"
 
-puts "\[2/5\] Copying robot-speaker-server.py, robot-tts.cc, CMakeLists.txt..."
+puts "\n\[2/5\] Copying files to robot..."
 spawn scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null robot-speaker-server.py robot-tts.cc CMakeLists.txt ${user}@${host}:${remote_dir}/
-handle_auth
-expect {
-    -re "100%" { }
-    eof { }
-    timeout {
-        puts "\nERROR: scp timed out"
-        exit 1
-    }
-}
+handle_password
+wait_eof "copying files"
 
-puts "\[3/5\] Building TTS helper on the robot (this may take 30-90 seconds)..."
+puts "\n\[3/5\] Building TTS helper on robot (this may take 30-90 seconds)..."
 spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "cd ${remote_dir} && rm -rf build && mkdir build && cd build && cmake .. && make -j\\$(nproc)"
-handle_auth
-wait_shell "building TTS helper"
+handle_password
+wait_eof "building TTS helper"
 
-puts "\[4/5\] Stopping old robot-speaker-server..."
+puts "\n\[4/5\] Stopping old robot-speaker-server..."
 spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "pkill -f robot-speaker-server.py || true"
-handle_auth
-wait_shell "stopping old server"
+handle_password
+wait_eof "stopping old server"
 
-puts "\[5/5\] Starting new robot-speaker-server..."
+puts "\n\[5/5\] Starting new robot-speaker-server..."
 spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "cd ${remote_dir} && nohup python3 robot-speaker-server.py > /tmp/robot-speaker.log 2>&1 &"
-handle_auth
-wait_shell "starting new server"
+handle_password
+wait_eof "starting new server"
 
 puts "\nDeployment complete."
-puts "View logs:  ssh ${user}@${host} 'tail -f /tmp/robot-speaker.log'"
-puts "Test TTS:   curl -X POST http://${host}:8123/speak-text -H 'Content-Type: application/json' -d '{\"text\":\"你好，机器人\"}'"
+puts "View logs: ssh ${user}@${host} 'tail -f /tmp/robot-speaker.log'"
+puts "Test TTS:  curl -X POST http://${host}:8123/speak-text -H 'Content-Type: application/json' -d '{\"text\":\"你好，机器人\"}'"
