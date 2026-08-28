@@ -6,7 +6,7 @@ Run with:
 Then open http://localhost:8081/demos/g1_23dof_coach.html
 """
 import os
-import urllib.request
+import http.client
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
@@ -46,15 +46,17 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def _proxy_to_robot(self, robot_path, method, content_type, body):
-        robot_url = f"http://192.168.52.241:8123{robot_path}"
-        req = urllib.request.Request(robot_url, data=body, method=method)
-        if content_type:
-            req.add_header("Content-Type", content_type)
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                return resp.status, resp.read()
-        except urllib.error.HTTPError as e:
-            return e.code, e.read()
+            conn = http.client.HTTPConnection("192.168.52.241", 8123, timeout=15)
+            headers = {"Content-Length": str(len(body))}
+            if content_type:
+                headers["Content-Type"] = content_type
+            conn.request(method, robot_path, body=body, headers=headers)
+            resp = conn.getresponse()
+            status = resp.status
+            resp_body = resp.read()
+            conn.close()
+            return status, resp_body
         except Exception as e:
             return 502, str(e).encode("utf-8")
 
