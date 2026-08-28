@@ -449,6 +449,7 @@
           />
           <button id="testTtsBtn" type="button">测试语音</button>
           <div class="status" id="ttsStatus"></div>
+          <progress id="ttsProgress" value="0" max="100" style="width:100%;display:none;margin-top:6px;"></progress>
         </div>
 
         <select id="camSelect" style="display: none"></select>
@@ -553,6 +554,7 @@
       const testTtsBtn = document.getElementById("testTtsBtn");
       const ttsModeSelect = document.getElementById("ttsMode");
       const ttsStatusEl = document.getElementById("ttsStatus");
+      const ttsProgressEl = document.getElementById("ttsProgress");
       const goBtn = document.getElementById("goBtn");
 
       let robotLm = null;
@@ -819,17 +821,38 @@
           return;
         }
         ttsStatusEl.textContent = "正在发送语音到机器人…";
+        ttsProgressEl.style.display = "block";
+        ttsProgressEl.value = 0;
         try {
-          const res = await fetch(`${url}/speak`, {
-            method: "POST",
-            headers: { "Content-Type": "audio/mpeg" },
-            body: blob,
+          await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.upload.addEventListener("progress", (e) => {
+              if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                ttsProgressEl.value = pct;
+                ttsStatusEl.textContent = `正在发送语音到机器人… ${pct}%`;
+              }
+            });
+            xhr.addEventListener("load", () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve();
+              } else {
+                reject(new Error(`robot ${xhr.status}`));
+              }
+            });
+            xhr.addEventListener("error", () => reject(new Error("network error")));
+            xhr.addEventListener("abort", () => reject(new Error("aborted")));
+            xhr.open("POST", `${url}/speak`);
+            xhr.setRequestHeader("Content-Type", "audio/mpeg");
+            xhr.send(blob);
           });
-          if (!res.ok) throw new Error(`robot ${res.status}`);
+          ttsProgressEl.value = 100;
           ttsStatusEl.textContent = "已发送到机器人";
         } catch (err) {
           console.error("Send to robot failed:", err);
           ttsStatusEl.textContent = "发送到机器人失败：" + err.message;
+        } finally {
+          setTimeout(() => { ttsProgressEl.style.display = "none"; }, 1500);
         }
       }
 
