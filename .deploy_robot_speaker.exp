@@ -1,33 +1,20 @@
 #!/usr/bin/expect -f
 # Password-based deployment for the robot speaker server + Unitree stock TTS helper.
+# Opens one interactive SSH session and uses echo markers for reliable completion.
 # Usage: expect .deploy_robot_speaker.exp
 set timeout 180
 set user "unitree"
 set host "192.168.52.241"
 set pass "123"
 set remote_dir "/home/unitree/robot-speaker"
+set marker "DEPLOY_MARKER_DONE"
 
-proc handle_password {} {
-    global pass
+proc run_cmd {label cmd} {
+    global marker
+    puts "\n\[$label\] $cmd"
+    send -- "$cmd && echo $marker\r"
     expect {
-        -re "password:\\s*" { send -- "$pass\r"; exp_continue }
-        -re "\\) \\?" { send -- "1\r"; exp_continue }
-        timeout { }
-    }
-}
-
-proc wait_eof {label} {
-    expect {
-        -re "password:\\s*" {
-            global pass
-            send -- "$pass\r"
-            exp_continue
-        }
-        -re "\\) \\?" {
-            send -- "1\r"
-            exp_continue
-        }
-        eof { }
+        -re "$marker" { }
         timeout {
             puts "\nERROR: timed out during: $label"
             exit 1
@@ -35,30 +22,55 @@ proc wait_eof {label} {
     }
 }
 
-puts "\n\[1/5\] Creating remote directory ${remote_dir}..."
-spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "mkdir -p ${remote_dir}"
-handle_password
-wait_eof "creating remote dir"
+puts "\nConnecting to ${user}@${host}..."
+spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host}
+
+# Handle password + Unitree distro selection prompt, then wait for the shell prompt.
+expect {
+    -re "password:\\s*" { send -- "$pass\r"; exp_continue }
+    -re "\\)\\s*\\?" { send -- "1\r"; exp_continue }
+    -re "unitree@ubuntu" { }
+    timeout {
+        puts "\nERROR: timed out logging in"
+        exit 1
+    }
+}
+
+# Verify shell readiness with a marker.
+send -- "echo $marker\r"
+expect {
+    -re "$marker" { }
+    timeout {
+        puts "\nERROR: shell did not become ready"
+        exit 1
+    }
+}
+
+run_cmd "1/5 create dir" "mkdir -p ${remote_dir}"
 
 puts "\n\[2/5\] Copying files to robot..."
+# scp in a separate spawn.
 spawn scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null robot-speaker-server.py robot-tts.cc CMakeLists.txt ${user}@${host}:${remote_dir}/
-handle_password
-wait_eof "copying files"
+expect {
+    -re "password:\\s*" { send -- "$pass\r"; exp_continue }
+    -re "noetic" { send -- "1\r"; exp_continue }
+    -re "\\) ?" { send -- "1\r"; exp_continue }
+    -re "100%" { }
+    eof { }
+    timeout {
+        puts "\nERROR: scp timed out"
+        exit 1
+    }
+}
 
-puts "\n\[3/5\] Building TTS helper on robot (this may take 30-90 seconds)..."
-spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "cd ${remote_dir} && rm -rf build && mkdir build && cd build && cmake .. && make -j\\$(nproc)"
-handle_password
-wait_eof "building TTS helper"
+run_cmd "3/5 verify copy" "ls ${remote_dir}/robot-speaker-server.py"
 
-puts "\n\[4/5\] Stopping old robot-speaker-server..."
-spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "pkill -f robot-speaker-server.py || true"
-handle_password
-wait_eof "stopping old server"
+run_cmd "4/5 build TTS helper" "cd ${remote_dir} && rm -rf build && mkdir build && cd build && cmake .. && make -j\\$(nproc)"
 
-puts "\n\[5/5\] Starting new robot-speaker-server..."
-spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${user}@${host} "cd ${remote_dir} && nohup python3 robot-speaker-server.py > /tmp/robot-speaker.log 2>&1 &"
-handle_password
-wait_eof "starting new server"
+run_cmd "5/5 restart server" "pkill -f robot-speaker-server.py || true; cd ${remote_dir} && nohup python3 robot-speaker-server.py > /tmp/robot-speaker.log 2>&1 &"
+
+send -- "exit\r"
+expect eof
 
 puts "\nDeployment complete."
 puts "View logs: ssh ${user}@${host} 'tail -f /tmp/robot-speaker.log'"
