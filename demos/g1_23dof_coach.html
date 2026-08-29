@@ -1107,6 +1107,7 @@
             score,
             text: spec.text,
             min: spec.min,
+            serious: spec.serious,
             importance: spec.importance,
           });
         }
@@ -1199,10 +1200,11 @@
           frame.all.forEach((item) => {
             const key = item.partName || item.feature;
             if (!parts[key]) {
-              parts[key] = { gap: 0, threshold: 0, count: 0, text: item.text };
+              parts[key] = { gap: 0, threshold: 0, serious: 0, count: 0, text: item.text };
             }
             parts[key].gap += item.maxAbs;
             parts[key].threshold += item.threshold;
+            parts[key].serious += item.serious;
             parts[key].count++;
             frameScore += 1 - Math.min(item.maxAbs / item.serious, 1);
           });
