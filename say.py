@@ -13,7 +13,7 @@ if __name__ == "__main__":
     client.Init()
 
     # Set robot speaker volume (0-100). Default 80 is noticeably louder than stock.
-    vol_code = client.SetVolume(volume)
+    vol_code = client.SetVolume(200)
     print("SetVolume(%d) ret=%d" % (volume, vol_code))
 
     code = client.TtsMaker(text, 0)
